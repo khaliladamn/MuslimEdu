@@ -34,14 +34,22 @@ jobs:
           cp -r source-files/src MuslimEdu/src
           cp source-files/App.tsx MuslimEdu/App.tsx
 
-      - name: Restrict build to arm64 only (smaller APK)
-        run: sed -i 's/^reactNativeArchitectures=.*/reactNativeArchitectures=arm64-v8a/' MuslimEdu/android/gradle.properties
-
       - name: Install dependencies
         working-directory: MuslimEdu
         run: |
           npm install
           npm install @react-navigation/native @react-navigation/native-stack react-native-screens react-native-safe-area-context react-native-keychain
+
+      - name: Bundle JavaScript into the APK (so it works without Metro)
+        working-directory: MuslimEdu
+        run: |
+          mkdir -p android/app/src/main/assets
+          npx react-native bundle \
+            --platform android \
+            --dev false \
+            --entry-file index.js \
+            --bundle-output android/app/src/main/assets/index.android.bundle \
+            --assets-dest android/app/src/main/res
 
       - name: Build debug APK
         working-directory: MuslimEdu/android

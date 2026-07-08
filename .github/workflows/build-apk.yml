@@ -34,6 +34,9 @@ jobs:
           cp -r source-files/src MuslimEdu/src
           cp source-files/App.tsx MuslimEdu/App.tsx
 
+      - name: Copy your app icon over the default one
+        run: cp -r source-files/android-icons/* MuslimEdu/android/app/src/main/res/
+
       - name: Install dependencies
         working-directory: MuslimEdu
         run: |

@@ -1,25 +1,12 @@
 import React from 'react';
-import { View, Text, ActivityIndicator, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useAuth } from '../context/AuthContext';
 import LoginScreen from '../screens/LoginScreen';
+import { getDashboardForRole } from './roleScreens';
 
 const Stack = createNativeStackNavigator();
-
-// Temporary placeholder - Phase 4 will replace this with real role-based dashboards
-function HomeScreen() {
-  const { user, logout } = useAuth();
-  return (
-    <View style={styles.center}>
-      <Text style={styles.welcome}>Welcome, {user?.name}</Text>
-      <Text style={styles.role}>Role: {user?.role}</Text>
-      <TouchableOpacity style={styles.logoutButton} onPress={logout}>
-        <Text style={styles.logoutText}>Log out</Text>
-      </TouchableOpacity>
-    </View>
-  );
-}
 
 function SplashScreen() {
   return (
@@ -27,6 +14,15 @@ function SplashScreen() {
       <ActivityIndicator size="large" color="#0F9D58" />
     </View>
   );
+}
+
+// Wraps whatever dashboard component matches the logged-in user's role.
+// Kept as its own component (rather than inline) so React Navigation
+// can render it as a normal screen.
+function DashboardRouter() {
+  const { user } = useAuth();
+  if (!user) return null;
+  return getDashboardForRole(user.role);
 }
 
 export default function RootNavigator() {
@@ -40,7 +36,7 @@ export default function RootNavigator() {
     <NavigationContainer>
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         {user ? (
-          <Stack.Screen name="Home" component={HomeScreen} />
+          <Stack.Screen name="Dashboard" component={DashboardRouter} />
         ) : (
           <Stack.Screen name="Login" component={LoginScreen} />
         )}
@@ -55,15 +51,5 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#FFFFFF',
-    paddingHorizontal: 24,
   },
-  welcome: { fontSize: 22, fontWeight: '600', color: '#1C1C1E' },
-  role: { fontSize: 15, color: '#8E8E93', marginTop: 6, marginBottom: 24 },
-  logoutButton: {
-    backgroundColor: '#F2F2F7',
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 12,
-  },
-  logoutText: { color: '#D70015', fontWeight: '600' },
 });

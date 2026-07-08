@@ -34,14 +34,11 @@ jobs:
           cp -r source-files/src MuslimEdu/src
           cp source-files/App.tsx MuslimEdu/App.tsx
 
-      - name: Copy your app icon over the default one
-        run: cp -r source-files/android-icons/* MuslimEdu/android/app/src/main/res/
-
       - name: Install dependencies
         working-directory: MuslimEdu
         run: |
           npm install
-          npm install @react-navigation/native @react-navigation/native-stack react-native-screens react-native-safe-area-context react-native-keychain
+          npm install @react-navigation/native @react-navigation/native-stack react-native-screens react-native-safe-area-context react-native-keychain react-native-svg
 
       - name: Bundle JavaScript into the APK (so it works without Metro)
         working-directory: MuslimEdu

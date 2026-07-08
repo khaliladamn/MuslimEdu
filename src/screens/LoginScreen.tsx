@@ -10,15 +10,15 @@ import {
   Platform,
   Dimensions,
   Animated,
+  StatusBar,
 } from 'react-native';
-import Svg, { Path, Defs, LinearGradient, Stop, Rect } from 'react-native-svg';
+import Svg, { Path, Defs, LinearGradient, Stop } from 'react-native-svg';
 import { useAuth } from '../context/AuthContext';
 import GlowAvatar from '../components/GlowAvatar';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 const INK = '#1C1C1E';
-const SUBTLE = '#8E8E93';
 const SUBTLE_LIGHT = 'rgba(255,255,255,0.75)';
 
 const WAVE_HEIGHT = 70;
@@ -63,23 +63,9 @@ export default function LoginScreen() {
 
   return (
     <View style={styles.flex}>
-      {/* Full-screen background: white at top, fading to a whisper of mint near the card */}
-      <Svg style={StyleSheet.absoluteFill} width={SCREEN_WIDTH} height={SCREEN_HEIGHT}>
-        <Defs>
-          <LinearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
-            <Stop offset="0" stopColor="#FFFFFF" />
-            <Stop offset="1" stopColor="#EAF7EF" />
-          </LinearGradient>
+      <StatusBar hidden />
 
-          {/* Same gradient family as the app logo: bright green -> deep teal */}
-          <LinearGradient id="cardGradient" x1="0" y1="0" x2="0" y2="1">
-            <Stop offset="0" stopColor="#4CAF50" />
-            <Stop offset="0.55" stopColor="#2E8B74" />
-            <Stop offset="1" stopColor="#2C5364" />
-          </LinearGradient>
-        </Defs>
-        <Rect x={0} y={0} width={SCREEN_WIDTH} height={SCREEN_HEIGHT} fill="url(#bg)" />
-      </Svg>
+      {/* Pure white background - no gradient up here, only the card below has one */}
 
       {/* Floating character avatars + heading */}
       <View style={styles.topContent}>
@@ -110,22 +96,21 @@ export default function LoginScreen() {
         <Text style={styles.heading}>Let's get you{'\n'}signed in!</Text>
       </View>
 
-      {/* Animated card - gradient + glass overlay, expands to cover the whole screen on focus */}
+      {/* Animated card - gradient matching the app logo, expands to cover the whole screen on focus */}
       <Animated.View style={[styles.card, { top: animatedTop }]}>
         <Svg width={SCREEN_WIDTH} height={SCREEN_HEIGHT} style={StyleSheet.absoluteFill}>
           <Defs>
-            <LinearGradient id="cardGradient2" x1="0" y1="0" x2="0" y2="1">
+            <LinearGradient id="cardGradient" x1="0" y1="0" x2="0" y2="1">
               <Stop offset="0" stopColor="#4CAF50" />
               <Stop offset="0.55" stopColor="#2E8B74" />
               <Stop offset="1" stopColor="#2C5364" />
             </LinearGradient>
           </Defs>
           <Path
-            fill="url(#cardGradient2)"
+            fill="url(#cardGradient)"
             d={`M0 ${WAVE_HEIGHT} L0 ${SCREEN_HEIGHT} L${SCREEN_WIDTH} ${SCREEN_HEIGHT} L${SCREEN_WIDTH} 40 Q ${SCREEN_WIDTH * 0.5} -30 0 40 Z`}
           />
         </Svg>
-        {/* Glass overlay - soft light sheen for a frosted/glassmorphism feel */}
         <View style={styles.glassOverlay} pointerEvents="none" />
 
         <KeyboardAvoidingView
@@ -226,7 +211,6 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    // top is animated
   },
   glassOverlay: {
     position: 'absolute',

@@ -1,21 +1,23 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import DashboardShell, { EMERALD, INK, SUBTLE } from './DashboardShell';
 
-// Menu items for things an admin manages. Each currently just shows an
-// alert-free placeholder tap (no screen wired up yet) - Phase 5 will turn
-// these into real screens hitting real endpoints (student lists, orphan
-// records, fee reports, etc).
+// Menu items for things an admin manages.
+// "route" is the screen name to navigate to; "params" are passed along.
+// Items without a route yet show as inert - Phase 6+ will wire those up.
 const MENU_ITEMS = [
-  { key: 'students', label: 'Students' },
-  { key: 'orphans', label: 'Orphan Students' },
-  { key: 'teachers', label: 'Teachers' },
-  { key: 'classes', label: 'Classes' },
-  { key: 'fees', label: 'Fee Reports' },
-  { key: 'attendance', label: 'Attendance' },
+  { key: 'students', label: 'Students', route: 'StudentsList', params: { mode: 'all' } },
+  { key: 'orphans', label: 'Orphan Students', route: 'StudentsList', params: { mode: 'orphans' } },
+  { key: 'teachers', label: 'Teachers', route: null },
+  { key: 'classes', label: 'Classes', route: null },
+  { key: 'fees', label: 'Fee Reports', route: null },
+  { key: 'attendance', label: 'Attendance', route: null },
 ];
 
 export default function AdminDashboard() {
+  const navigation = useNavigation();
+
   return (
     <DashboardShell title="Admin">
       <Text style={styles.sectionLabel}>Manage</Text>
@@ -27,8 +29,9 @@ export default function AdminDashboard() {
             style={styles.card}
             activeOpacity={0.7}
             onPress={() => {
-              // Phase 5: navigate to the real screen for this section.
-              // Left intentionally inert for now.
+              if (item.route) {
+                (navigation as any).navigate(item.route, item.params);
+              }
             }}
           >
             <Text style={styles.cardText}>{item.label}</Text>
@@ -38,9 +41,8 @@ export default function AdminDashboard() {
 
       <View style={styles.noteBox}>
         <Text style={styles.noteText}>
-          These sections are placeholders for now. Tell me which one to build
-          out first (e.g. Students or Orphan Students) and I'll wire it to
-          real data next.
+          Students and Orphan Students are now wired to real data. The rest
+          are placeholders - tell me which to build out next.
         </Text>
       </View>
     </DashboardShell>

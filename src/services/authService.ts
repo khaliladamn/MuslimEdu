@@ -14,6 +14,17 @@ export type UserRole =
   | 'student'
   | 'warden';
 
+export interface OrphanProfile {
+  orphan_id_number: string | null;
+  guardian_name: string | null;
+  guardian_relation: string | null;
+  guardian_phone: string | null;
+  health_status: string | null;
+  special_needs: string | null;
+  admission_date: string | null;
+  admission_reason: string | null;
+}
+
 export interface AuthUser {
   id: number;
   name: string;
@@ -22,6 +33,8 @@ export interface AuthUser {
   role: UserRole;
   school_id: number | null;
   code: string | null;
+  is_orphan?: boolean;
+  orphan_profile?: OrphanProfile | null;
 }
 
 export interface LoginResponse {

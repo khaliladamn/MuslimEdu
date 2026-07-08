@@ -1,6 +1,7 @@
 import React from 'react';
 import { UserRole } from '../services/authService';
 import AdminDashboard from '../screens/dashboards/AdminDashboard';
+import StudentDashboard from '../screens/dashboards/StudentDashboard';
 import PlaceholderDashboard from '../screens/dashboards/PlaceholderDashboard';
 
 /**
@@ -27,7 +28,7 @@ export function getDashboardForRole(role: UserRole): React.ReactElement {
       return <PlaceholderDashboard roleLabel="Teacher" />;
 
     case 'student':
-      return <PlaceholderDashboard roleLabel="Student" />;
+      return <StudentDashboard />;
 
     case 'parent':
       return <PlaceholderDashboard roleLabel="Parent" />;

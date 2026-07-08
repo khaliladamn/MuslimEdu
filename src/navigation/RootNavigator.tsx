@@ -4,6 +4,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useAuth } from '../context/AuthContext';
 import LoginScreen from '../screens/LoginScreen';
+import StudentListScreen from '../screens/students/StudentListScreen';
 import { getDashboardForRole } from './roleScreens';
 
 const Stack = createNativeStackNavigator();
@@ -36,7 +37,10 @@ export default function RootNavigator() {
     <NavigationContainer>
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         {user ? (
-          <Stack.Screen name="Dashboard" component={DashboardRouter} />
+          <>
+            <Stack.Screen name="Dashboard" component={DashboardRouter} />
+            <Stack.Screen name="StudentsList" component={StudentListScreen} />
+          </>
         ) : (
           <Stack.Screen name="Login" component={LoginScreen} />
         )}

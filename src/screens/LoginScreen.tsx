@@ -4,10 +4,10 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
+  TouchableWithoutFeedback,
+  Keyboard,
   StyleSheet,
   ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform,
   Dimensions,
   Animated,
   StatusBar,
@@ -16,7 +16,7 @@ import Svg, { Path, Defs, LinearGradient, Stop } from 'react-native-svg';
 import { useAuth } from '../context/AuthContext';
 import GlowAvatar from '../components/GlowAvatar';
 
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('screen');
 
 const INK = '#1C1C1E';
 const SUBTLE_LIGHT = 'rgba(255,255,255,0.75)';
@@ -32,6 +32,7 @@ export default function LoginScreen() {
   const [secure, setSecure] = useState(true);
   const [focusCount, setFocusCount] = useState(0);
 
+  const passwordRef = useRef<TextInput>(null);
   const anim = useRef(new Animated.Value(0)).current;
 
   const animatedTop = anim.interpolate({
@@ -62,125 +63,131 @@ export default function LoginScreen() {
   };
 
   return (
-    <View style={styles.flex}>
-      <StatusBar hidden />
+    <TouchableWithoutFeedback onPress={() => Keyboard.dismiss()}>
+      <View style={styles.flex}>
+        <StatusBar hidden />
 
-      {/* Pure white background - no gradient up here, only the card below has one */}
-
-      {/* Floating character avatars + heading */}
-      <View style={styles.topContent}>
-        <View style={styles.avatarCluster}>
-          <GlowAvatar
-            source={require('../assets/images/avatar-3.png')}
-            glowColor="#7FD9C8"
-            size={70}
-            style={styles.avatarTopRight}
-          />
-          <GlowAvatar
-            source={require('../assets/images/avatar-1.png')}
-            glowColor="#F4B6C2"
-            size={82}
-            style={styles.avatarLeft}
-          />
-          <GlowAvatar
-            source={require('../assets/images/avatar-2.png')}
-            glowColor="#A9E4A0"
-            size={74}
-            style={styles.avatarBottom}
-          />
-          <View style={styles.speechBubble}>
-            <Text style={styles.speechText}>Salam!</Text>
-          </View>
-        </View>
-
-        <Text style={styles.heading}>Let's get you{'\n'}signed in!</Text>
-      </View>
-
-      {/* Animated card - gradient matching the app logo, expands to cover the whole screen on focus */}
-      <Animated.View style={[styles.card, { top: animatedTop }]}>
-        <Svg width={SCREEN_WIDTH} height={SCREEN_HEIGHT} style={StyleSheet.absoluteFill}>
-          <Defs>
-            <LinearGradient id="cardGradient" x1="0" y1="0" x2="0" y2="1">
-              <Stop offset="0" stopColor="#4CAF50" />
-              <Stop offset="0.55" stopColor="#2E8B74" />
-              <Stop offset="1" stopColor="#2C5364" />
-            </LinearGradient>
-          </Defs>
-          <Path
-            fill="url(#cardGradient)"
-            d={`M0 ${WAVE_HEIGHT} L0 ${SCREEN_HEIGHT} L${SCREEN_WIDTH} ${SCREEN_HEIGHT} L${SCREEN_WIDTH} 40 Q ${SCREEN_WIDTH * 0.5} -30 0 40 Z`}
-          />
-        </Svg>
-        <View style={styles.glassOverlay} pointerEvents="none" />
-
-        <KeyboardAvoidingView
-          style={styles.cardBody}
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        >
-          <Text style={styles.helperText}>Accounts are created by your school admin.</Text>
-
-          <View style={styles.inputWrapper}>
-            <TextInput
-              style={styles.input}
-              placeholder="Email"
-              placeholderTextColor={SUBTLE_LIGHT}
-              autoCapitalize="none"
-              autoCorrect={false}
-              keyboardType="email-address"
-              value={email}
-              onFocus={expand}
-              onBlur={collapseIfUnfocused}
-              onChangeText={(text) => {
-                setEmail(text);
-                if (error) clearError();
-              }}
+        {/* Floating character avatars + heading */}
+        <View style={styles.topContent}>
+          <View style={styles.avatarCluster}>
+            <GlowAvatar
+              source={require('../assets/images/avatar-3.png')}
+              glowColor="#7FD9C8"
+              size={70}
+              style={styles.avatarTopRight}
             />
-          </View>
-
-          <View style={styles.inputWrapper}>
-            <View style={styles.passwordRow}>
-              <TextInput
-                style={[styles.input, styles.passwordInput]}
-                placeholder="Password"
-                placeholderTextColor={SUBTLE_LIGHT}
-                secureTextEntry={secure}
-                autoCapitalize="none"
-                autoCorrect={false}
-                value={password}
-                onFocus={expand}
-                onBlur={collapseIfUnfocused}
-                onChangeText={(text) => {
-                  setPassword(text);
-                  if (error) clearError();
-                }}
-              />
-              <TouchableOpacity onPress={() => setSecure((s) => !s)} hitSlop={10}>
-                <Text style={styles.toggleText}>{secure ? 'Show' : 'Hide'}</Text>
-              </TouchableOpacity>
+            <GlowAvatar
+              source={require('../assets/images/avatar-1.png')}
+              glowColor="#F4B6C2"
+              size={82}
+              style={styles.avatarLeft}
+            />
+            <GlowAvatar
+              source={require('../assets/images/avatar-2.png')}
+              glowColor="#A9E4A0"
+              size={74}
+              style={styles.avatarBottom}
+            />
+            <View style={styles.speechBubble}>
+              <Text style={styles.speechText}>Salam!</Text>
             </View>
           </View>
 
-          <TouchableOpacity>
-            <Text style={styles.forgotText}>Forgot password?</Text>
-          </TouchableOpacity>
+          <Text style={styles.heading}>Let's get you{'\n'}signed in!</Text>
+        </View>
 
-          {error ? <Text style={styles.errorText}>{error}</Text> : null}
+        {/* Animated card - gradient matching the app logo, expands to cover the whole screen on focus */}
+        <Animated.View style={[styles.card, { top: animatedTop }]}>
+          <Svg width={SCREEN_WIDTH} height={SCREEN_HEIGHT} style={StyleSheet.absoluteFill}>
+            <Defs>
+              <LinearGradient id="cardGradient" x1="0" y1="0" x2="0" y2="1">
+                <Stop offset="0" stopColor="#4CAF50" />
+                <Stop offset="0.55" stopColor="#2E8B74" />
+                <Stop offset="1" stopColor="#2C5364" />
+              </LinearGradient>
+            </Defs>
+            <Path
+              fill="url(#cardGradient)"
+              d={`M0 ${WAVE_HEIGHT} L0 ${SCREEN_HEIGHT} L${SCREEN_WIDTH} ${SCREEN_HEIGHT} L${SCREEN_WIDTH} 40 Q ${SCREEN_WIDTH * 0.5} -30 0 40 Z`}
+            />
+          </Svg>
+          <View style={styles.glassOverlay} pointerEvents="none" />
 
-          <TouchableOpacity
-            style={[styles.button, !canSubmit && styles.buttonDisabled]}
-            onPress={handleSubmit}
-            disabled={!canSubmit}
-            activeOpacity={0.85}
-          >
-            {isSubmitting ? (
-              <ActivityIndicator color="#2C5364" />
-            ) : (
-              <Text style={styles.buttonText}>Sign In</Text>
-            )}
-          </TouchableOpacity>
-        </KeyboardAvoidingView>
-      </Animated.View>
-    </View>
+          <View style={styles.cardBody}>
+            {/* Centered form content - fills whatever height the card currently has,
+                whether collapsed (half screen) or expanded (full screen) */}
+            <View style={styles.formCenter}>
+              <Text style={styles.helperText}>Accounts are created by your school admin.</Text>
+
+              <View style={styles.inputWrapper}>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Email"
+                  placeholderTextColor={SUBTLE_LIGHT}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  keyboardType="email-address"
+                  returnKeyType="next"
+                  value={email}
+                  onFocus={expand}
+                  onBlur={collapseIfUnfocused}
+                  onSubmitEditing={() => passwordRef.current?.focus()}
+                  onChangeText={(text) => {
+                    setEmail(text);
+                    if (error) clearError();
+                  }}
+                />
+              </View>
+
+              <View style={styles.inputWrapper}>
+                <View style={styles.passwordRow}>
+                  <TextInput
+                    ref={passwordRef}
+                    style={[styles.input, styles.passwordInput]}
+                    placeholder="Password"
+                    placeholderTextColor={SUBTLE_LIGHT}
+                    secureTextEntry={secure}
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    returnKeyType="done"
+                    value={password}
+                    onFocus={expand}
+                    onBlur={collapseIfUnfocused}
+                    onSubmitEditing={() => Keyboard.dismiss()}
+                    onChangeText={(text) => {
+                      setPassword(text);
+                      if (error) clearError();
+                    }}
+                  />
+                  <TouchableOpacity onPress={() => setSecure((s) => !s)} hitSlop={10}>
+                    <Text style={styles.toggleText}>{secure ? 'Show' : 'Hide'}</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+
+              <TouchableOpacity>
+                <Text style={styles.forgotText}>Forgot password?</Text>
+              </TouchableOpacity>
+
+              {error ? <Text style={styles.errorText}>{error}</Text> : null}
+
+              <TouchableOpacity
+                style={[styles.button, !canSubmit && styles.buttonDisabled]}
+                onPress={handleSubmit}
+                disabled={!canSubmit}
+                activeOpacity={0.85}
+              >
+                {isSubmitting ? (
+                  <ActivityIndicator color="#2C5364" />
+                ) : (
+                  <Text style={styles.buttonText}>Sign In</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Animated.View>
+      </View>
+    </TouchableWithoutFeedback>
   );
 }
 
@@ -211,6 +218,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
+    backgroundColor: '#2C5364',
   },
   glassOverlay: {
     position: 'absolute',
@@ -223,11 +231,13 @@ const styles = StyleSheet.create({
     borderBottomRightRadius: 60,
   },
   cardBody: {
-    position: 'absolute',
-    top: 24,
-    left: 0,
-    right: 0,
-    bottom: 0,
+    flex: 1,
+    paddingTop: WAVE_HEIGHT + 10,
+    paddingBottom: 20,
+  },
+  formCenter: {
+    flex: 1,
+    justifyContent: 'center',
     paddingHorizontal: 26,
   },
   helperText: { fontSize: 13, color: SUBTLE_LIGHT, textAlign: 'center', marginBottom: 18 },

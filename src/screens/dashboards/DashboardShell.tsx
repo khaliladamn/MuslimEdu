@@ -1,8 +1,9 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image } from 'react-native';
 import { useAuth } from '../../context/AuthContext';
 
 const EMERALD = '#0F9D58';
+const EMERALD_SOFT = '#EAF7EF';
 const INK = '#1C1C1E';
 const SUBTLE = '#8E8E93';
 
@@ -12,23 +13,34 @@ interface DashboardShellProps {
 }
 
 /**
- * Shared wrapper for every role's dashboard: shows the user's name, role,
- * a logout button, and renders whatever content that role's screen provides.
- * Keeps every dashboard visually consistent while letting each role's
- * actual content differ.
+ * Shared wrapper for every role's dashboard: greeting + name, profile photo
+ * (synced from the backend's user record, falling back to initials), a role
+ * badge, and whatever content that role's screen provides below it.
  */
 export default function DashboardShell({ title, children }: DashboardShellProps) {
   const { user, logout } = useAuth();
+
+  const initial = user?.name?.trim()?.[0]?.toUpperCase() ?? '?';
 
   return (
     <View style={styles.flex}>
       <View style={styles.header}>
         <View>
-          <Text style={styles.greeting}>Hi, {user?.name}</Text>
-          <Text style={styles.roleLabel}>{title}</Text>
+          <Text style={styles.greetingSmall}>Assalamu Alaykum,</Text>
+          <Text style={styles.greetingName}>{user?.name}</Text>
+          <View style={styles.roleBadge}>
+            <Text style={styles.roleBadgeText}>{title}</Text>
+          </View>
         </View>
+
         <TouchableOpacity onPress={logout} hitSlop={10}>
-          <Text style={styles.logoutText}>Log out</Text>
+          {user?.photo ? (
+            <Image source={{ uri: user.photo }} style={styles.avatar} />
+          ) : (
+            <View style={styles.avatarFallback}>
+              <Text style={styles.avatarFallbackText}>{initial}</Text>
+            </View>
+          )}
         </TouchableOpacity>
       </View>
 
@@ -48,13 +60,29 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 60,
     paddingBottom: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F2F2F7',
   },
-  greeting: { fontSize: 20, fontWeight: '600', color: INK },
-  roleLabel: { fontSize: 14, color: SUBTLE, marginTop: 2, textTransform: 'capitalize' },
-  logoutText: { color: '#D70015', fontSize: 14, fontWeight: '600' },
-  content: { padding: 20, flexGrow: 1 },
+  greetingSmall: { fontSize: 14, color: SUBTLE },
+  greetingName: { fontSize: 22, fontWeight: '700', color: INK, marginTop: 2 },
+  roleBadge: {
+    alignSelf: 'flex-start',
+    backgroundColor: EMERALD_SOFT,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+    marginTop: 8,
+  },
+  roleBadgeText: { fontSize: 11, fontWeight: '700', color: EMERALD, textTransform: 'uppercase', letterSpacing: 0.5 },
+  avatar: { width: 52, height: 52, borderRadius: 26, backgroundColor: '#F2F2F7' },
+  avatarFallback: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: EMERALD,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarFallbackText: { color: '#FFFFFF', fontSize: 20, fontWeight: '700' },
+  content: { paddingHorizontal: 20, paddingBottom: 32, flexGrow: 1 },
 });
 
-export { EMERALD, INK, SUBTLE };
+export { EMERALD, EMERALD_SOFT, INK, SUBTLE };

@@ -33,6 +33,7 @@ export interface AuthUser {
   role: UserRole;
   school_id: number | null;
   code: string | null;
+  photo?: string | null;
   is_orphan?: boolean;
   orphan_profile?: OrphanProfile | null;
 }

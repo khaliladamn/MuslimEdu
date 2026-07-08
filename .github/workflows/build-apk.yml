@@ -41,7 +41,12 @@ jobs:
         working-directory: MuslimEdu
         run: |
           npm install
-          npm install @react-navigation/native @react-navigation/native-stack react-native-screens react-native-safe-area-context react-native-keychain react-native-svg
+          npm install @react-navigation/native @react-navigation/native-stack react-native-screens react-native-safe-area-context react-native-keychain react-native-svg react-native-image-picker
+
+      - name: Add photo library permission to AndroidManifest
+        working-directory: MuslimEdu
+        run: |
+          sed -i '/<uses-permission android:name="android.permission.INTERNET" \/>/a\    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />\n    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />' android/app/src/main/AndroidManifest.xml
 
       - name: Bundle JavaScript into the APK (so it works without Metro)
         working-directory: MuslimEdu

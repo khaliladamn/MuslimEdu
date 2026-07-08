@@ -5,6 +5,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useAuth } from '../context/AuthContext';
 import LoginScreen from '../screens/LoginScreen';
 import StudentListScreen from '../screens/students/StudentListScreen';
+import OrphanReportScreen from '../screens/orphan/OrphanReportScreen';
 import { getDashboardForRole } from './roleScreens';
 
 const Stack = createNativeStackNavigator();
@@ -47,6 +48,7 @@ export default function RootNavigator() {
             <>
               <Stack.Screen name="Dashboard" component={DashboardRouter} options={{ animation: 'fade' }} />
               <Stack.Screen name="StudentsList" component={StudentListScreen} options={{ animation: 'slide_from_right' }} />
+              <Stack.Screen name="OrphanReport" component={OrphanReportScreen} options={{ animation: 'slide_from_right' }} />
             </>
           ) : (
             <Stack.Screen name="Login" component={LoginScreen} />

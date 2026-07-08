@@ -2,15 +2,22 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../../context/AuthContext';
-import DashboardShell, { EMERALD, EMERALD_SOFT, INK, SUBTLE } from './DashboardShell';
+import DashboardShell, { EMERALD, INK, SUBTLE } from './DashboardShell';
 
-// Alternating solid/soft emerald tiles for visual rhythm, all one color family.
+// Menu items for things an admin manages.
+// "route" is the screen name to navigate to; "params" are passed along.
+// Items without a route yet show as inert - Phase 6+ will wire those up.
+//
+// Note: there's no separate "Orphan Students" entry. Orphan status is set
+// per-school (school_type = 'orphanage'), not per-child, so an orphanage
+// admin's "Students" list already only ever contains orphan children. The
+// label below adapts automatically based on the logged-in admin's school.
 const MENU_ITEMS = [
-  { key: 'students', route: 'StudentsList', params: {}, style: 'solid' as const },
-  { key: 'teachers', label: 'Teachers', route: null, style: 'soft' as const },
-  { key: 'classes', label: 'Classes', route: null, style: 'soft' as const },
-  { key: 'fees', label: 'Fee Reports', route: null, style: 'solid' as const },
-  { key: 'attendance', label: 'Attendance', route: null, style: 'soft' as const },
+  { key: 'students', route: 'StudentsList', params: {} },
+  { key: 'teachers', label: 'Teachers', route: null },
+  { key: 'classes', label: 'Classes', route: null },
+  { key: 'fees', label: 'Fee Reports', route: null },
+  { key: 'attendance', label: 'Attendance', route: null },
 ];
 
 export default function AdminDashboard() {
@@ -27,15 +34,15 @@ export default function AdminDashboard() {
         {MENU_ITEMS.map((item) => (
           <TouchableOpacity
             key={item.key}
-            style={[styles.card, item.style === 'solid' ? styles.cardSolid : styles.cardSoft]}
-            activeOpacity={0.8}
+            style={styles.card}
+            activeOpacity={0.7}
             onPress={() => {
               if (item.route) {
                 (navigation as any).navigate(item.route, item.params);
               }
             }}
           >
-            <Text style={[styles.cardText, item.style === 'solid' && styles.cardTextSolid]}>
+            <Text style={styles.cardText}>
               {item.key === 'students' ? studentsLabel : item.label}
             </Text>
           </TouchableOpacity>
@@ -59,7 +66,6 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
-    fontWeight: '600',
   },
   grid: {
     flexDirection: 'row',
@@ -68,20 +74,18 @@ const styles = StyleSheet.create({
   },
   card: {
     width: '48%',
-    borderRadius: 18,
-    paddingVertical: 26,
-    paddingHorizontal: 14,
+    backgroundColor: '#F2F2F7',
+    borderRadius: 14,
+    paddingVertical: 24,
+    paddingHorizontal: 12,
     alignItems: 'center',
     marginBottom: 12,
   },
-  cardSolid: { backgroundColor: EMERALD },
-  cardSoft: { backgroundColor: EMERALD_SOFT },
-  cardText: { fontSize: 14, fontWeight: '700', color: EMERALD, textAlign: 'center' },
-  cardTextSolid: { color: '#FFFFFF' },
+  cardText: { fontSize: 14, fontWeight: '600', color: INK, textAlign: 'center' },
   noteBox: {
-    marginTop: 8,
-    backgroundColor: EMERALD_SOFT,
-    borderRadius: 14,
+    marginTop: 16,
+    backgroundColor: '#EAF7EF',
+    borderRadius: 12,
     padding: 16,
     borderLeftWidth: 3,
     borderLeftColor: EMERALD,

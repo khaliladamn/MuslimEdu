@@ -9,14 +9,22 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  Image,
+  Dimensions,
 } from 'react-native';
+import Svg, { Path } from 'react-native-svg';
 import { useAuth } from '../context/AuthContext';
+import GlowAvatar from '../components/GlowAvatar';
 
-const EMERALD = '#0F9D58'; // emerald green
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+
+const DARK = '#101114';
+const EMERALD = '#0F9D58';
 const EMERALD_DARK = '#0C7C46';
-const INK = '#1C1C1E'; // near-black, Apple-style text color
-const SUBTLE = '#8E8E93'; // Apple-style secondary gray
+const INK = '#1C1C1E';
+const SUBTLE = '#8E8E93';
+
+// Height of the wave card's curved top section (the SVG canvas)
+const WAVE_HEIGHT = 90;
 
 export default function LoginScreen() {
   const { login, isSubmitting, error, clearError } = useAuth();
@@ -32,25 +40,60 @@ export default function LoginScreen() {
   };
 
   return (
-    <KeyboardAvoidingView
-      style={styles.flex}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    >
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        keyboardShouldPersistTaps="handled"
+    <View style={styles.flex}>
+      {/* Dark top section with floating character avatars */}
+      <View style={styles.darkSection}>
+        <View style={styles.avatarCluster}>
+          <GlowAvatar
+            source={require('../assets/images/avatar-3.png')}
+            glowColor="#7FD9C8"
+            size={78}
+            style={styles.avatarTopRight}
+          />
+          <GlowAvatar
+            source={require('../assets/images/avatar-1.png')}
+            glowColor="#F4B6C2"
+            size={92}
+            style={styles.avatarLeft}
+          />
+          <GlowAvatar
+            source={require('../assets/images/avatar-2.png')}
+            glowColor="#A9E4A0"
+            size={82}
+            style={styles.avatarBottom}
+          />
+
+          <View style={styles.speechBubble}>
+            <Text style={styles.speechText}>Salam!</Text>
+          </View>
+        </View>
+
+        <Text style={styles.heading}>Let's get you{'\n'}signed in!</Text>
+      </View>
+
+      {/* Wave-shaped white card */}
+      <View style={styles.waveWrapper}>
+        <Svg width={SCREEN_WIDTH} height={WAVE_HEIGHT} viewBox={`0 0 ${SCREEN_WIDTH} ${WAVE_HEIGHT}`}>
+          <Path
+            fill="#FFFFFF"
+            d={`M0 ${WAVE_HEIGHT} L0 40 Q ${SCREEN_WIDTH * 0.5} -30 ${SCREEN_WIDTH} 40 L${SCREEN_WIDTH} ${WAVE_HEIGHT} Z`}
+          />
+        </Svg>
+      </View>
+
+      <KeyboardAvoidingView
+        style={styles.cardBody}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        {/* Replace with your actual MuslimEdu app icon asset */}
-        <Image
-          source={require('../assets/images/app-icon.png')}
-          style={styles.logo}
-          resizeMode="contain"
-        />
+        <ScrollView
+          contentContainerStyle={styles.cardContent}
+          keyboardShouldPersistTaps="handled"
+        >
+          <Text style={styles.helperText}>
+            Accounts are created by your school admin.
+          </Text>
+          <Text style={styles.helperLink}>Contact your admin for access</Text>
 
-        <Text style={styles.title}>MuslimEdu</Text>
-        <Text style={styles.subtitle}>Sign in to continue</Text>
-
-        <View style={styles.form}>
           <View style={styles.inputWrapper}>
             <Text style={styles.label}>Email</Text>
             <TextInput
@@ -69,11 +112,10 @@ export default function LoginScreen() {
           </View>
 
           <View style={styles.inputWrapper}>
-            <Text style={styles.label}>Password</Text>
             <View style={styles.passwordRow}>
               <TextInput
                 style={[styles.input, styles.passwordInput]}
-                placeholder="••••••••"
+                placeholder="Password"
                 placeholderTextColor={SUBTLE}
                 secureTextEntry={secure}
                 autoCapitalize="none"
@@ -90,6 +132,10 @@ export default function LoginScreen() {
             </View>
           </View>
 
+          <TouchableOpacity>
+            <Text style={styles.forgotText}>Forgot password?</Text>
+          </TouchableOpacity>
+
           {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
           <TouchableOpacity
@@ -104,70 +150,83 @@ export default function LoginScreen() {
               <Text style={styles.buttonText}>Sign In</Text>
             )}
           </TouchableOpacity>
-        </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   flex: { flex: 1, backgroundColor: '#FFFFFF' },
-  scrollContent: {
-    flexGrow: 1,
-    justifyContent: 'center',
-    paddingHorizontal: 28,
-    paddingVertical: 48,
+  darkSection: {
+    backgroundColor: DARK,
+    paddingTop: 70,
+    paddingBottom: 50,
+    paddingHorizontal: 24,
   },
-  logo: {
-    width: 72,
-    height: 72,
-    alignSelf: 'center',
-    marginBottom: 20,
-    borderRadius: 16,
+  avatarCluster: {
+    height: 190,
+    marginBottom: 10,
   },
-  title: {
-    fontSize: 28,
-    fontWeight: '600',
-    color: INK,
-    textAlign: 'center',
+  avatarLeft: { position: 'absolute', left: 10, top: 20 },
+  avatarTopRight: { position: 'absolute', right: 20, top: 0 },
+  avatarBottom: { position: 'absolute', left: 90, top: 90 },
+  speechBubble: {
+    position: 'absolute',
+    left: 130,
+    top: 65,
+    backgroundColor: '#3A3A3C',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
   },
-  subtitle: {
+  speechText: { color: '#FFFFFF', fontWeight: '600', fontSize: 14 },
+  heading: {
+    color: '#FFFFFF',
+    fontSize: 32,
+    fontWeight: '700',
+    lineHeight: 38,
+  },
+  waveWrapper: { backgroundColor: DARK },
+  cardBody: { flex: 1, backgroundColor: '#FFFFFF', marginTop: -1 },
+  cardContent: { paddingHorizontal: 28, paddingBottom: 40 },
+  helperText: { fontSize: 14, color: SUBTLE, textAlign: 'center', marginBottom: 4 },
+  helperLink: {
     fontSize: 15,
-    color: SUBTLE,
+    color: INK,
+    fontWeight: '700',
     textAlign: 'center',
-    marginTop: 6,
-    marginBottom: 36,
+    marginBottom: 24,
   },
-  form: { width: '100%' },
-  inputWrapper: { marginBottom: 20 },
-  label: {
-    fontSize: 13,
-    color: SUBTLE,
-    marginBottom: 6,
-  },
+  inputWrapper: { marginBottom: 16 },
+  label: { fontSize: 13, color: SUBTLE, marginBottom: 6 },
   input: {
     fontSize: 16,
     color: INK,
-    paddingVertical: 12,
+    paddingVertical: 14,
     paddingHorizontal: 16,
-    backgroundColor: '#F2F2F7', // Apple-style light gray field
-    borderRadius: 12,
+    backgroundColor: '#F2F2F7',
+    borderRadius: 14,
   },
   passwordRow: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#F2F2F7',
-    borderRadius: 12,
+    borderRadius: 14,
   },
-  passwordInput: {
-    flex: 1,
-    backgroundColor: 'transparent',
-  },
+  passwordInput: { flex: 1, backgroundColor: 'transparent' },
   toggleText: {
     color: EMERALD,
     fontSize: 14,
     fontWeight: '600',
     paddingHorizontal: 16,
+  },
+  forgotText: {
+    color: SUBTLE,
+    fontSize: 13,
+    textAlign: 'center',
+    marginTop: 4,
+    marginBottom: 20,
   },
   errorText: {
     color: '#D70015',
@@ -176,20 +235,12 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   button: {
-    backgroundColor: EMERALD,
-    borderRadius: 12,
-    paddingVertical: 15,
+    backgroundColor: DARK,
+    borderRadius: 30,
+    paddingVertical: 17,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 4,
   },
-  buttonDisabled: {
-    backgroundColor: EMERALD_DARK,
-    opacity: 0.4,
-  },
-  buttonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
-  },
+  buttonDisabled: { opacity: 0.4 },
+  buttonText: { color: '#FFFFFF', fontSize: 16, fontWeight: '700' },
 });

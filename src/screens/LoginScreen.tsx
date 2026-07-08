@@ -17,13 +17,12 @@ import GlowAvatar from '../components/GlowAvatar';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
-const EMERALD = '#0F9D58';
-const EMERALD_DARK = '#0A6E3D';
 const INK = '#1C1C1E';
-const SUBTLE_LIGHT = 'rgba(255,255,255,0.7)';
+const SUBTLE = '#8E8E93';
+const SUBTLE_LIGHT = 'rgba(255,255,255,0.75)';
 
 const WAVE_HEIGHT = 70;
-const COLLAPSED_CARD_HEIGHT = SCREEN_HEIGHT * 0.52; // card covers ~half the screen by default
+const COLLAPSED_CARD_HEIGHT = SCREEN_HEIGHT * 0.52;
 const COLLAPSED_TOP = SCREEN_HEIGHT - COLLAPSED_CARD_HEIGHT;
 
 export default function LoginScreen() {
@@ -33,7 +32,7 @@ export default function LoginScreen() {
   const [secure, setSecure] = useState(true);
   const [focusCount, setFocusCount] = useState(0);
 
-  const anim = useRef(new Animated.Value(0)).current; // 0 = collapsed, 1 = fullscreen
+  const anim = useRef(new Animated.Value(0)).current;
 
   const animatedTop = anim.interpolate({
     inputRange: [0, 1],
@@ -64,13 +63,19 @@ export default function LoginScreen() {
 
   return (
     <View style={styles.flex}>
-      {/* Full-screen background: dark at top fading to light at the bottom */}
+      {/* Full-screen background: white at top, fading to a whisper of mint near the card */}
       <Svg style={StyleSheet.absoluteFill} width={SCREEN_WIDTH} height={SCREEN_HEIGHT}>
         <Defs>
           <LinearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
-            <Stop offset="0" stopColor="#101114" />
-            <Stop offset="0.65" stopColor="#4A5A56" />
+            <Stop offset="0" stopColor="#FFFFFF" />
             <Stop offset="1" stopColor="#EAF7EF" />
+          </LinearGradient>
+
+          {/* Same gradient family as the app logo: bright green -> deep teal */}
+          <LinearGradient id="cardGradient" x1="0" y1="0" x2="0" y2="1">
+            <Stop offset="0" stopColor="#4CAF50" />
+            <Stop offset="0.55" stopColor="#2E8B74" />
+            <Stop offset="1" stopColor="#2C5364" />
           </LinearGradient>
         </Defs>
         <Rect x={0} y={0} width={SCREEN_WIDTH} height={SCREEN_HEIGHT} fill="url(#bg)" />
@@ -105,15 +110,23 @@ export default function LoginScreen() {
         <Text style={styles.heading}>Let's get you{'\n'}signed in!</Text>
       </View>
 
-      {/* Animated emerald card - expands to cover the whole screen on field focus */}
+      {/* Animated card - gradient + glass overlay, expands to cover the whole screen on focus */}
       <Animated.View style={[styles.card, { top: animatedTop }]}>
-        <Svg width={SCREEN_WIDTH} height={WAVE_HEIGHT} style={styles.wave}>
+        <Svg width={SCREEN_WIDTH} height={SCREEN_HEIGHT} style={StyleSheet.absoluteFill}>
+          <Defs>
+            <LinearGradient id="cardGradient2" x1="0" y1="0" x2="0" y2="1">
+              <Stop offset="0" stopColor="#4CAF50" />
+              <Stop offset="0.55" stopColor="#2E8B74" />
+              <Stop offset="1" stopColor="#2C5364" />
+            </LinearGradient>
+          </Defs>
           <Path
-            fill={EMERALD}
-            d={`M0 ${WAVE_HEIGHT} L0 40 Q ${SCREEN_WIDTH * 0.5} -30 ${SCREEN_WIDTH} 40 L${SCREEN_WIDTH} ${WAVE_HEIGHT} Z`}
+            fill="url(#cardGradient2)"
+            d={`M0 ${WAVE_HEIGHT} L0 ${SCREEN_HEIGHT} L${SCREEN_WIDTH} ${SCREEN_HEIGHT} L${SCREEN_WIDTH} 40 Q ${SCREEN_WIDTH * 0.5} -30 0 40 Z`}
           />
         </Svg>
-        <View style={styles.cardFill} />
+        {/* Glass overlay - soft light sheen for a frosted/glassmorphism feel */}
+        <View style={styles.glassOverlay} pointerEvents="none" />
 
         <KeyboardAvoidingView
           style={styles.cardBody}
@@ -175,7 +188,7 @@ export default function LoginScreen() {
             activeOpacity={0.85}
           >
             {isSubmitting ? (
-              <ActivityIndicator color={EMERALD_DARK} />
+              <ActivityIndicator color="#2C5364" />
             ) : (
               <Text style={styles.buttonText}>Sign In</Text>
             )}
@@ -187,7 +200,7 @@ export default function LoginScreen() {
 }
 
 const styles = StyleSheet.create({
-  flex: { flex: 1, backgroundColor: '#101114' },
+  flex: { flex: 1, backgroundColor: '#FFFFFF' },
   topContent: {
     paddingTop: 60,
     paddingHorizontal: 24,
@@ -200,13 +213,13 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 110,
     top: 48,
-    backgroundColor: 'rgba(58,58,60,0.9)',
+    backgroundColor: 'rgba(44,83,100,0.85)',
     paddingHorizontal: 14,
     paddingVertical: 7,
     borderRadius: 18,
   },
   speechText: { color: '#FFFFFF', fontWeight: '600', fontSize: 13 },
-  heading: { color: '#FFFFFF', fontSize: 26, fontWeight: '700', lineHeight: 32 },
+  heading: { color: INK, fontSize: 26, fontWeight: '700', lineHeight: 32 },
 
   card: {
     position: 'absolute',
@@ -215,8 +228,16 @@ const styles = StyleSheet.create({
     bottom: 0,
     // top is animated
   },
-  wave: { position: 'absolute', top: -WAVE_HEIGHT + 1, left: 0 },
-  cardFill: { flex: 1, backgroundColor: EMERALD },
+  glassOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 140,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderBottomLeftRadius: 60,
+    borderBottomRightRadius: 60,
+  },
   cardBody: {
     position: 'absolute',
     top: 24,
@@ -234,14 +255,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     backgroundColor: 'rgba(255,255,255,0.15)',
     borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.25)',
   },
   passwordRow: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: 'rgba(255,255,255,0.15)',
     borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.25)',
   },
-  passwordInput: { flex: 1, backgroundColor: 'transparent' },
+  passwordInput: { flex: 1, backgroundColor: 'transparent', borderWidth: 0 },
   toggleText: { color: '#FFFFFF', fontSize: 13, fontWeight: '700', paddingHorizontal: 16 },
   forgotText: { color: SUBTLE_LIGHT, fontSize: 13, textAlign: 'center', marginTop: 2, marginBottom: 16 },
   errorText: { color: '#FFE0E0', fontSize: 14, marginBottom: 12, textAlign: 'center' },
@@ -253,5 +278,5 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   buttonDisabled: { opacity: 0.5 },
-  buttonText: { color: EMERALD_DARK, fontSize: 16, fontWeight: '700' },
+  buttonText: { color: '#2C5364', fontSize: 16, fontWeight: '700' },
 });

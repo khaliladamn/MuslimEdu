@@ -7,34 +7,27 @@ import {
   ActivityIndicator,
   TouchableOpacity,
   RefreshControl,
+  Image,
 } from 'react-native';
-import { useNavigation, useRoute } from '@react-navigation/native';
+import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../../context/AuthContext';
-import {
-  fetchStudents,
-  fetchOrphanStudents,
-  StudentSummary,
-  OrphanStudentSummary,
-} from '../../services/adminService';
+import { fetchStudents, StudentSummary } from '../../services/adminService';
 
 const EMERALD = '#0F9D58';
 const INK = '#1C1C1E';
 const SUBTLE = '#8E8E93';
 
-type Mode = 'all' | 'orphans';
-
 /**
- * One screen, two modes: pass { mode: 'all' } to show every student,
- * or { mode: 'orphans' } to show only students with an orphan profile.
- * Avoids duplicating nearly-identical list screens.
+ * Single list screen for an admin's students. There's no separate
+ * "orphans only" mode: orphan status is set per-school (school_type),
+ * not per-child, so an orphanage admin's list is already all orphan
+ * children. The title adapts based on the logged-in admin's school.
  */
 export default function StudentListScreen() {
   const navigation = useNavigation();
-  const route = useRoute();
-  const { mode } = (route.params as { mode: Mode }) ?? { mode: 'all' };
-  const { token } = useAuth();
+  const { token, user } = useAuth();
 
-  const [students, setStudents] = useState<(StudentSummary | OrphanStudentSummary)[]>([]);
+  const [students, setStudents] = useState<StudentSummary[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -43,14 +36,12 @@ export default function StudentListScreen() {
     if (!token) return;
     setError(null);
     try {
-      const data = mode === 'orphans'
-        ? await fetchOrphanStudents(token)
-        : await fetchStudents(token);
+      const data = await fetchStudents(token);
       setStudents(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load students.');
     }
-  }, [token, mode]);
+  }, [token]);
 
   useEffect(() => {
     setIsLoading(true);
@@ -63,7 +54,7 @@ export default function StudentListScreen() {
     setIsRefreshing(false);
   };
 
-  const title = mode === 'orphans' ? 'Orphan Students' : 'Students';
+  const title = user?.is_orphan ? 'Children' : 'Students';
 
   return (
     <View style={styles.flex}>
@@ -88,9 +79,7 @@ export default function StudentListScreen() {
         </View>
       ) : students.length === 0 ? (
         <View style={styles.center}>
-          <Text style={styles.emptyText}>
-            {mode === 'orphans' ? 'No orphan students found.' : 'No students found.'}
-          </Text>
+          <Text style={styles.emptyText}>No {title.toLowerCase()} found.</Text>
         </View>
       ) : (
         <FlatList
@@ -102,27 +91,16 @@ export default function StudentListScreen() {
           }
           renderItem={({ item }) => (
             <View style={styles.card}>
-              <Text style={styles.name}>{item.name}</Text>
-              <Text style={styles.meta}>{item.email}</Text>
-              {item.code ? <Text style={styles.meta}>Code: {item.code}</Text> : null}
-
-              {'orphan_profile' in item && item.orphan_profile ? (
-                <View style={styles.orphanBox}>
-                  {item.orphan_profile.guardian_name ? (
-                    <Text style={styles.orphanText}>
-                      Guardian: {item.orphan_profile.guardian_name}
-                      {item.orphan_profile.guardian_relation
-                        ? ` (${item.orphan_profile.guardian_relation})`
-                        : ''}
-                    </Text>
-                  ) : null}
-                  {item.orphan_profile.health_status ? (
-                    <Text style={styles.orphanText}>
-                      Health: {item.orphan_profile.health_status}
-                    </Text>
-                  ) : null}
-                </View>
+              {item.photo ? (
+                <Image source={{ uri: item.photo }} style={styles.avatar} />
               ) : null}
+              <View style={styles.cardBody}>
+                <Text style={styles.name}>{item.name}</Text>
+                <Text style={styles.meta}>{item.email}</Text>
+                {item.orphan_id_number ? (
+                  <Text style={styles.meta}>ID: {item.orphan_id_number}</Text>
+                ) : null}
+              </View>
             </View>
           )}
         />
@@ -152,18 +130,15 @@ const styles = StyleSheet.create({
   emptyText: { color: SUBTLE, fontSize: 15 },
   listContent: { padding: 16 },
   card: {
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: '#F2F2F7',
     borderRadius: 12,
     padding: 14,
     marginBottom: 10,
   },
+  avatar: { width: 44, height: 44, borderRadius: 22, marginRight: 12, backgroundColor: '#E5E5EA' },
+  cardBody: { flex: 1 },
   name: { fontSize: 16, fontWeight: '600', color: INK },
   meta: { fontSize: 13, color: SUBTLE, marginTop: 2 },
-  orphanBox: {
-    marginTop: 8,
-    paddingTop: 8,
-    borderTopWidth: 1,
-    borderTopColor: '#E5E5EA',
-  },
-  orphanText: { fontSize: 13, color: INK, marginTop: 2 },
 });

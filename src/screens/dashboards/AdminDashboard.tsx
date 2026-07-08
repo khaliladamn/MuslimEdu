@@ -1,14 +1,19 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { useAuth } from '../../context/AuthContext';
 import DashboardShell, { EMERALD, INK, SUBTLE } from './DashboardShell';
 
 // Menu items for things an admin manages.
 // "route" is the screen name to navigate to; "params" are passed along.
 // Items without a route yet show as inert - Phase 6+ will wire those up.
+//
+// Note: there's no separate "Orphan Students" entry. Orphan status is set
+// per-school (school_type = 'orphanage'), not per-child, so an orphanage
+// admin's "Students" list already only ever contains orphan children. The
+// label below adapts automatically based on the logged-in admin's school.
 const MENU_ITEMS = [
-  { key: 'students', label: 'Students', route: 'StudentsList', params: { mode: 'all' } },
-  { key: 'orphans', label: 'Orphan Students', route: 'StudentsList', params: { mode: 'orphans' } },
+  { key: 'students', route: 'StudentsList', params: {} },
   { key: 'teachers', label: 'Teachers', route: null },
   { key: 'classes', label: 'Classes', route: null },
   { key: 'fees', label: 'Fee Reports', route: null },
@@ -17,6 +22,9 @@ const MENU_ITEMS = [
 
 export default function AdminDashboard() {
   const navigation = useNavigation();
+  const { user } = useAuth();
+
+  const studentsLabel = user?.is_orphan ? 'Children' : 'Students';
 
   return (
     <DashboardShell title="Admin">
@@ -34,15 +42,17 @@ export default function AdminDashboard() {
               }
             }}
           >
-            <Text style={styles.cardText}>{item.label}</Text>
+            <Text style={styles.cardText}>
+              {item.key === 'students' ? studentsLabel : item.label}
+            </Text>
           </TouchableOpacity>
         ))}
       </View>
 
       <View style={styles.noteBox}>
         <Text style={styles.noteText}>
-          Students and Orphan Students are now wired to real data. The rest
-          are placeholders - tell me which to build out next.
+          {studentsLabel} is now wired to real data. The rest are
+          placeholders - tell me which to build out next.
         </Text>
       </View>
     </DashboardShell>

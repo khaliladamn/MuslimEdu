@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../../context/AuthContext';
 
 const EMERALD = '#0F9D58';
@@ -14,13 +15,20 @@ interface DashboardShellProps {
 
 /**
  * Shared wrapper for every role's dashboard: greeting + name, profile photo
- * (synced from the backend's user record, falling back to initials), a role
- * badge, and whatever content that role's screen provides below it.
+ * (synced from the backend's user record, falling back to initials if
+ * missing OR if the image URL fails to actually load), a role badge, and
+ * whatever content that role's screen provides below it.
+ *
+ * Logout now lives in the Menu tab, not here - tapping the avatar jumps
+ * there instead.
  */
 export default function DashboardShell({ title, children }: DashboardShellProps) {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
+  const navigation = useNavigation();
+  const [photoFailed, setPhotoFailed] = useState(false);
 
   const initial = user?.name?.trim()?.[0]?.toUpperCase() ?? '?';
+  const showPhoto = !!user?.photo && !photoFailed;
 
   return (
     <View style={styles.flex}>
@@ -33,9 +41,13 @@ export default function DashboardShell({ title, children }: DashboardShellProps)
           </View>
         </View>
 
-        <TouchableOpacity onPress={logout} hitSlop={10}>
-          {user?.photo ? (
-            <Image source={{ uri: user.photo }} style={styles.avatar} />
+        <TouchableOpacity onPress={() => (navigation as any).navigate('Menu')} hitSlop={10}>
+          {showPhoto ? (
+            <Image
+              source={{ uri: user!.photo! }}
+              style={styles.avatar}
+              onError={() => setPhotoFailed(true)}
+            />
           ) : (
             <View style={styles.avatarFallback}>
               <Text style={styles.avatarFallbackText}>{initial}</Text>
@@ -82,7 +94,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   avatarFallbackText: { color: '#FFFFFF', fontSize: 20, fontWeight: '700' },
-  content: { paddingHorizontal: 20, paddingBottom: 32, flexGrow: 1 },
+  content: { paddingHorizontal: 20, paddingBottom: 110, flexGrow: 1 },
 });
 
 export { EMERALD, EMERALD_SOFT, INK, SUBTLE };

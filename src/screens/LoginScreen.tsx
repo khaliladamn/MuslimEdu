@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
-  ScrollView,
   Image,
   StatusBar,
 } from 'react-native';
@@ -107,7 +106,7 @@ export default function LoginScreen() {
   return (
     <View style={styles.flex}>
       <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
-      <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+      <View style={styles.scrollContent}>
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity
@@ -220,14 +219,14 @@ export default function LoginScreen() {
         <TouchableOpacity style={styles.registerButton} activeOpacity={0.7}>
           <Text style={styles.registerText}>Register your school</Text>
         </TouchableOpacity>
-      </ScrollView>
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   flex: { flex: 1, backgroundColor: '#FFFFFF' },
-  scrollContent: { paddingHorizontal: 24, paddingTop: 56, paddingBottom: 40 },
+  scrollContent: { flex: 1, paddingHorizontal: 24, paddingTop: 50, paddingBottom: 20 },
 
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   backButton: { padding: 4 },
@@ -235,10 +234,10 @@ const styles = StyleSheet.create({
   brandLogo: { width: 28, height: 28, borderRadius: 8, marginRight: 8 },
   brandName: { fontSize: 18, fontWeight: '700', color: TEAL_DARK },
 
-  title: { fontSize: 30, fontWeight: '800', color: TEAL_DARK, marginTop: 28, lineHeight: 36 },
+  title: { fontSize: 26, fontWeight: '800', color: TEAL_DARK, marginTop: 18, lineHeight: 31 },
   subtitle: { fontSize: 14, color: SUBTLE, marginTop: 6 },
 
-  illustration: { width: 280, height: 280, alignSelf: 'center', marginVertical: 12 },
+  illustration: { width: 210, height: 210, alignSelf: 'center', marginVertical: 4 },
 
   fieldLabel: { fontSize: 13, fontWeight: '700', color: INK, marginBottom: 8 },
   inputRow: {
@@ -293,6 +292,6 @@ const styles = StyleSheet.create({
   buttonDisabled: { opacity: 0.6 },
   buttonText: { color: '#FFFFFF', fontSize: 15, fontWeight: '700', letterSpacing: 1.2 },
 
-  registerButton: { marginTop: 22, alignItems: 'center', paddingVertical: 8 },
+  registerButton: { marginTop: 14, alignItems: 'center', paddingVertical: 6 },
   registerText: { fontSize: 14, fontWeight: '700', color: '#228C8D' },
 });

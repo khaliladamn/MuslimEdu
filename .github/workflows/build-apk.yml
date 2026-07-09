@@ -41,7 +41,7 @@ jobs:
         working-directory: MuslimEdu
         run: |
           npm install
-          npm install @react-navigation/native @react-navigation/native-stack react-native-screens react-native-safe-area-context react-native-keychain react-native-svg react-native-image-picker
+          npm install @react-navigation/native @react-navigation/native-stack @react-navigation/bottom-tabs react-native-screens react-native-safe-area-context react-native-keychain react-native-svg react-native-image-picker
 
       - name: Add photo library permission to AndroidManifest
         working-directory: MuslimEdu

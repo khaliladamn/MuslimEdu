@@ -6,6 +6,8 @@ import { useAuth } from '../context/AuthContext';
 import LoginScreen from '../screens/LoginScreen';
 import StudentListScreen from '../screens/students/StudentListScreen';
 import OrphanReportScreen from '../screens/orphan/OrphanReportScreen';
+import AdminOrphanOverviewScreen from '../screens/orphan/AdminOrphanOverviewScreen';
+import AdminChildReportDetailScreen from '../screens/orphan/AdminChildReportDetailScreen';
 import { getDashboardForRole } from './roleScreens';
 
 const Stack = createNativeStackNavigator();
@@ -49,6 +51,8 @@ export default function RootNavigator() {
               <Stack.Screen name="Dashboard" component={DashboardRouter} options={{ animation: 'fade' }} />
               <Stack.Screen name="StudentsList" component={StudentListScreen} options={{ animation: 'slide_from_right' }} />
               <Stack.Screen name="OrphanReport" component={OrphanReportScreen} options={{ animation: 'slide_from_right' }} />
+              <Stack.Screen name="AdminOrphanOverview" component={AdminOrphanOverviewScreen} options={{ animation: 'slide_from_right' }} />
+              <Stack.Screen name="AdminChildReportDetail" component={AdminChildReportDetailScreen} options={{ animation: 'slide_from_right' }} />
             </>
           ) : (
             <Stack.Screen name="Login" component={LoginScreen} />

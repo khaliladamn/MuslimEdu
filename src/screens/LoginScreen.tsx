@@ -6,6 +6,8 @@ import {
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
   Image,
   StatusBar,
 } from 'react-native';
@@ -106,7 +108,10 @@ export default function LoginScreen() {
   return (
     <View style={styles.flex}>
       <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
-      <View style={styles.scrollContent}>
+      <KeyboardAvoidingView
+        style={styles.scrollContent}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity
@@ -123,16 +128,20 @@ export default function LoginScreen() {
           </View>
         </View>
 
-        {/* Greeting */}
-        <Text style={styles.title}>Peace be upon you!</Text>
-        <Text style={styles.subtitle}>Connect through Education.</Text>
+        {/* Everything below the header shares the remaining space, centered
+            vertically, so leftover space distributes evenly instead of
+            collecting as a blank gap at the bottom */}
+        <View style={styles.centerGroup}>
+          {/* Greeting */}
+          <Text style={styles.title}>Peace be upon you!</Text>
+          <Text style={styles.subtitle}>Connect through Education.</Text>
 
-        {/* Illustration */}
-        <Image
-          source={require('../assets/images/students-illustration.png')}
-          style={styles.illustration}
-          resizeMode="contain"
-        />
+          {/* Illustration */}
+          <Image
+            source={require('../assets/images/students-illustration.png')}
+            style={styles.illustration}
+            resizeMode="contain"
+          />
 
         {/* Form */}
         <Text style={styles.fieldLabel}>E-Mail</Text>
@@ -219,7 +228,8 @@ export default function LoginScreen() {
         <TouchableOpacity style={styles.registerButton} activeOpacity={0.7}>
           <Text style={styles.registerText}>Register your school</Text>
         </TouchableOpacity>
-      </View>
+        </View>
+      </KeyboardAvoidingView>
     </View>
   );
 }
@@ -227,6 +237,7 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   flex: { flex: 1, backgroundColor: '#FFFFFF' },
   scrollContent: { flex: 1, paddingHorizontal: 24, paddingTop: 50, paddingBottom: 20 },
+  centerGroup: { flex: 1, justifyContent: 'center' },
 
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   backButton: { padding: 4 },
@@ -237,7 +248,7 @@ const styles = StyleSheet.create({
   title: { fontSize: 26, fontWeight: '800', color: TEAL_DARK, marginTop: 18, lineHeight: 31 },
   subtitle: { fontSize: 14, color: SUBTLE, marginTop: 6 },
 
-  illustration: { width: 210, height: 210, alignSelf: 'center', marginVertical: 4 },
+  illustration: { width: 240, height: 240, alignSelf: 'center', marginVertical: 10 },
 
   fieldLabel: { fontSize: 13, fontWeight: '700', color: INK, marginBottom: 8 },
   inputRow: {

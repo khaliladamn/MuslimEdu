@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { View, Animated, StyleSheet, StatusBar, Image } from 'react-native';
+import { View, Animated, StyleSheet, StatusBar } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useAuth } from '../context/AuthContext';
@@ -15,63 +15,45 @@ const Stack = createNativeStackNavigator();
 export default function RootNavigator() {
   const { user, isLoading } = useAuth();
   const fadeAnim = useRef(new Animated.Value(0)).current;
-  const splashFade = useRef(new Animated.Value(1)).current;
 
-  // Once the app has finished checking for a saved session, cross-fade
-  // from the branded splash straight into the real screen - no spinner,
-  // and the branded icon (rather than blank white) makes the brief wait
-  // feel intentional instead of a flash.
+  // Android already shows its own native splash (your app icon on white)
+  // automatically before any JS runs - we don't need to recreate that here.
+  // Once the saved-session check finishes, just fade the real app in.
   useEffect(() => {
     if (!isLoading) {
-      Animated.parallel([
-        Animated.timing(fadeAnim, { toValue: 1, duration: 280, useNativeDriver: true }),
-        Animated.timing(splashFade, { toValue: 0, duration: 200, useNativeDriver: true }),
-      ]).start();
+      Animated.timing(fadeAnim, { toValue: 1, duration: 280, useNativeDriver: true }).start();
     }
-  }, [isLoading, fadeAnim, splashFade]);
+  }, [isLoading, fadeAnim]);
+
+  if (isLoading) {
+    // Plain white - matches Android's native splash background, so the
+    // handoff from native splash to this is invisible instead of a flash.
+    return <View style={styles.blank} />;
+  }
 
   return (
-    <View style={styles.flex}>
+    <Animated.View style={[styles.flex, { opacity: fadeAnim }]}>
       <StatusBar hidden />
-
-      {!isLoading && (
-        <Animated.View style={[styles.flex, { opacity: fadeAnim }]}>
-          <NavigationContainer>
-            <Stack.Navigator screenOptions={{ headerShown: false, animation: 'fade' }}>
-              {user ? (
-                <>
-                  <Stack.Screen name="MainTabs" component={MainTabs} options={{ animation: 'fade' }} />
-                  <Stack.Screen name="StudentsList" component={StudentListScreen} options={{ animation: 'slide_from_right' }} />
-                  <Stack.Screen name="OrphanReport" component={OrphanReportScreen} options={{ animation: 'slide_from_right' }} />
-                  <Stack.Screen name="AdminOrphanOverview" component={AdminOrphanOverviewScreen} options={{ animation: 'slide_from_right' }} />
-                  <Stack.Screen name="AdminChildReportDetail" component={AdminChildReportDetailScreen} options={{ animation: 'slide_from_right' }} />
-                </>
-              ) : (
-                <Stack.Screen name="Login" component={LoginScreen} />
-              )}
-            </Stack.Navigator>
-          </NavigationContainer>
-        </Animated.View>
-      )}
-
-      {/* Branded splash - sits on top, fades out once ready instead of a blank white gap */}
-      <Animated.View
-        pointerEvents="none"
-        style={[styles.splash, { opacity: splashFade }]}
-      >
-        <Image source={require('../assets/images/app-icon.png')} style={styles.splashIcon} />
-      </Animated.View>
-    </View>
+      <NavigationContainer>
+        <Stack.Navigator screenOptions={{ headerShown: false, animation: 'fade' }}>
+          {user ? (
+            <>
+              <Stack.Screen name="MainTabs" component={MainTabs} options={{ animation: 'fade' }} />
+              <Stack.Screen name="StudentsList" component={StudentListScreen} options={{ animation: 'slide_from_right' }} />
+              <Stack.Screen name="OrphanReport" component={OrphanReportScreen} options={{ animation: 'slide_from_right' }} />
+              <Stack.Screen name="AdminOrphanOverview" component={AdminOrphanOverviewScreen} options={{ animation: 'slide_from_right' }} />
+              <Stack.Screen name="AdminChildReportDetail" component={AdminChildReportDetailScreen} options={{ animation: 'slide_from_right' }} />
+            </>
+          ) : (
+            <Stack.Screen name="Login" component={LoginScreen} />
+          )}
+        </Stack.Navigator>
+      </NavigationContainer>
+    </Animated.View>
   );
 }
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
-  splash: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: '#FFFFFF',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  splashIcon: { width: 84, height: 84, borderRadius: 20 },
+  blank: { flex: 1, backgroundColor: '#FFFFFF' },
 });

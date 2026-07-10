@@ -8,9 +8,7 @@ import {
   ScrollView,
   ActivityIndicator,
   Alert,
-  Image,
 } from 'react-native';
-import { launchImageLibrary, Asset } from 'react-native-image-picker';
 import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../../context/AuthContext';
 import { fetchReportStatus, submitReport, ReportStatus } from '../../services/orphanService';
@@ -66,32 +64,7 @@ export default function OrphanReportScreen() {
   const [note, setNote] = useState('');
   const [academicRating, setAcademicRating] = useState<number | null>(null);
   const [wellbeingRating, setWellbeingRating] = useState<number | null>(null);
-  const [photos, setPhotos] = useState<Asset[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  const MAX_PHOTOS = 5;
-
-  const pickPhotos = async () => {
-    const remaining = MAX_PHOTOS - photos.length;
-    if (remaining <= 0) {
-      Alert.alert('Limit reached', `You can attach up to ${MAX_PHOTOS} photos.`);
-      return;
-    }
-
-    const result = await launchImageLibrary({
-      mediaType: 'photo',
-      selectionLimit: remaining,
-      quality: 0.7,
-    });
-
-    if (result.didCancel || !result.assets) return;
-
-    setPhotos((prev) => [...prev, ...result.assets!].slice(0, MAX_PHOTOS));
-  };
-
-  const removePhoto = (uri?: string) => {
-    setPhotos((prev) => prev.filter((p) => p.uri !== uri));
-  };
 
   const load = useCallback(async () => {
     if (!token) return;
@@ -120,21 +93,16 @@ export default function OrphanReportScreen() {
     }
     setIsSubmitting(true);
     try {
-      await submitReport(
-        token,
-        {
-          note,
-          academic_rating: academicRating,
-          wellbeing_rating: wellbeingRating,
-        },
-        photos.map((p) => ({ uri: p.uri!, fileName: p.fileName, type: p.type })),
-      );
+      await submitReport(token, {
+        note,
+        academic_rating: academicRating,
+        wellbeing_rating: wellbeingRating,
+      });
       Alert.alert('Report submitted', 'Your monthly report has been sent to your school admin.');
       await load();
       setNote('');
       setAcademicRating(null);
       setWellbeingRating(null);
-      setPhotos([]);
     } catch (err) {
       Alert.alert('Something went wrong', err instanceof Error ? err.message : 'Please try again.');
     } finally {
@@ -142,35 +110,19 @@ export default function OrphanReportScreen() {
     }
   };
 
-  // Build a Jan-Dec timeline for the current year, marking each month as
-  // submitted / missing / not due yet, by matching against the reports
-  // returned from the backend (current_report + history).
-  const buildYearTimeline = (data: ReportStatus | null) => {
-    const year = now.getFullYear();
-    const currentMonthIndex = now.getMonth(); // 0-11
-
-    const allReports = data ? [...data.history, ...(data.current_report ? [data.current_report] : [])] : [];
-
-    return MONTH_NAMES.map((name, index) => {
-      const monthDateStr = `${year}-${String(index + 1).padStart(2, '0')}-01`;
-      const report = allReports.find((r) => r.report_month === monthDateStr);
-
-      let state: 'submitted' | 'missing' | 'upcoming';
-      if (report) {
-        state = 'submitted';
-      } else if (index < currentMonthIndex) {
-        state = 'missing';
-      } else if (index === currentMonthIndex) {
-        state = data?.submitted_this_month ? 'submitted' : 'missing';
-      } else {
-        state = 'upcoming';
-      }
-
-      return { name, index, state, report };
-    });
+  // The backend builds the rolling window itself (last 12 months, or since
+  // admission_date if more recent) - just format it for display.
+  const formatMonthLabel = (reportMonth: string) => {
+    const [year, month] = reportMonth.split('-').map(Number);
+    return `${MONTH_NAMES[month - 1]} ${year}`;
   };
 
-  const timeline = buildYearTimeline(status);
+  const timeline = (status?.timeline ?? []).map((entry) => ({
+    name: formatMonthLabel(entry.report_month),
+    state: entry.submitted ? ('submitted' as const) : ('missing' as const),
+    report: entry.report,
+  }));
+
   const alreadySubmitted = status?.submitted_this_month ?? false;
 
   return (
@@ -203,7 +155,7 @@ export default function OrphanReportScreen() {
                 <Text style={styles.cardTitle}>You're all set for {currentMonthLabel} ✅</Text>
                 <Text style={styles.cardSubtitle}>
                   Your report for this month has already been submitted. Check the
-                  timeline below to see your history for the year.
+                  timeline below to see your history.
                 </Text>
               </>
             ) : (
@@ -227,38 +179,6 @@ export default function OrphanReportScreen() {
                 <RatingSelector label="Academic Rating" value={academicRating} onChange={setAcademicRating} />
                 <RatingSelector label="Wellbeing Rating" value={wellbeingRating} onChange={setWellbeingRating} />
 
-                <View style={styles.photoBlock}>
-                  <Text style={styles.fieldLabel}>Photos</Text>
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                    {photos.map((photo) => (
-                      <View key={photo.uri} style={styles.photoThumbWrapper}>
-                        <Image source={{ uri: photo.uri }} style={styles.photoThumb} />
-                        <TouchableOpacity
-                          style={styles.photoRemoveBadge}
-                          onPress={() => removePhoto(photo.uri)}
-                          hitSlop={8}
-                        >
-                          <Text style={styles.photoRemoveBadgeText}>×</Text>
-                        </TouchableOpacity>
-                      </View>
-                    ))}
-
-                    {photos.length < MAX_PHOTOS && (
-                      <TouchableOpacity style={styles.photoAddTile} onPress={pickPhotos}>
-                        <Text style={styles.photoAddPlus}>+</Text>
-                        <Text style={styles.photoAddLabel}>Add</Text>
-                      </TouchableOpacity>
-                    )}
-                  </ScrollView>
-                  {photos.length === 0 ? (
-                    <Text style={styles.photoHint}>No photos added yet</Text>
-                  ) : (
-                    <Text style={styles.photoHint}>
-                      {photos.length} of {MAX_PHOTOS} photos added
-                    </Text>
-                  )}
-                </View>
-
                 <TouchableOpacity
                   style={[styles.submitButton, isSubmitting && styles.submitButtonDisabled]}
                   onPress={handleSubmit}
@@ -274,8 +194,8 @@ export default function OrphanReportScreen() {
             )}
           </View>
 
-          {/* Year timeline */}
-          <Text style={styles.sectionLabel}>{now.getFullYear()} Overview</Text>
+          {/* Timeline */}
+          <Text style={styles.sectionLabel}>Submission History</Text>
           <View style={styles.card}>
             {timeline.map((month, idx) => (
               <View key={month.name} style={styles.timelineRow}>
@@ -285,7 +205,6 @@ export default function OrphanReportScreen() {
                       styles.timelineDot,
                       month.state === 'submitted' && styles.dotSubmitted,
                       month.state === 'missing' && styles.dotMissing,
-                      month.state === 'upcoming' && styles.dotUpcoming,
                     ]}
                   />
                   {idx < timeline.length - 1 && <View style={styles.timelineLine} />}
@@ -300,11 +219,7 @@ export default function OrphanReportScreen() {
                       month.state === 'missing' && styles.statusMissing,
                     ]}
                   >
-                    {month.state === 'submitted'
-                      ? 'Submitted'
-                      : month.state === 'missing'
-                      ? 'Missing'
-                      : 'Not due yet'}
+                    {month.state === 'submitted' ? 'Submitted' : 'Missing'}
                   </Text>
                   {month.report?.note ? (
                     <Text style={styles.timelineNote} numberOfLines={2}>
@@ -384,46 +299,6 @@ const styles = StyleSheet.create({
   ratingPillText: { fontSize: 16, fontWeight: '600', color: INK },
   ratingPillTextSelected: { color: '#FFFFFF' },
 
-  photoBlock: { marginBottom: 22 },
-  photoThumbWrapper: { marginRight: 12, position: 'relative' },
-  photoThumb: {
-    width: 74,
-    height: 74,
-    borderRadius: 16,
-    backgroundColor: TRACK_BG,
-  },
-  photoRemoveBadge: {
-    position: 'absolute',
-    top: -6,
-    right: -6,
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: '#E0637A',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOpacity: 0.15,
-    shadowRadius: 3,
-    shadowOffset: { width: 0, height: 1 },
-    elevation: 2,
-  },
-  photoRemoveBadgeText: { color: '#FFFFFF', fontSize: 14, fontWeight: '700', lineHeight: 16 },
-  photoAddTile: {
-    width: 74,
-    height: 74,
-    borderRadius: 16,
-    backgroundColor: TRACK_BG,
-    borderWidth: 1.5,
-    borderColor: '#D9DCE1',
-    borderStyle: 'dashed',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  photoAddPlus: { fontSize: 22, color: EMERALD, fontWeight: '300', lineHeight: 24 },
-  photoAddLabel: { fontSize: 11, color: SUBTLE, marginTop: 2 },
-  photoHint: { fontSize: 12, color: SUBTLE, marginTop: 10 },
-
   submitButton: {
     backgroundColor: EMERALD,
     borderRadius: 16,
@@ -454,7 +329,6 @@ const styles = StyleSheet.create({
   },
   dotSubmitted: { backgroundColor: EMERALD },
   dotMissing: { backgroundColor: '#E0637A' },
-  dotUpcoming: { backgroundColor: '#D9DCE1' },
   timelineLine: {
     width: 2,
     flex: 1,

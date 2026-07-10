@@ -11,7 +11,6 @@ import {
   Image,
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import { launchImageLibrary, Asset } from 'react-native-image-picker';
 import { useAuth } from '../../context/AuthContext';
 import { MonthlyReport } from '../../services/orphanService';
 import {
@@ -60,7 +59,6 @@ export default function AdminChildReportDetailScreen() {
   const [note, setNote] = useState('');
   const [academicRating, setAcademicRating] = useState<number | null>(null);
   const [wellbeingRating, setWellbeingRating] = useState<number | null>(null);
-  const [photos, setPhotos] = useState<Asset[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const load = useCallback(async () => {
@@ -79,14 +77,6 @@ export default function AdminChildReportDetailScreen() {
     load().finally(() => setIsLoading(false));
   }, [load]);
 
-  const pickPhotos = async () => {
-    const remaining = 5 - photos.length;
-    if (remaining <= 0) return;
-    const result = await launchImageLibrary({ mediaType: 'photo', selectionLimit: remaining, quality: 0.7 });
-    if (result.didCancel || !result.assets) return;
-    setPhotos((prev) => [...prev, ...result.assets!].slice(0, 5));
-  };
-
   const handleCreate = async () => {
     if (!token || !academicRating || !wellbeingRating) {
       Alert.alert('Almost done', 'Please select both ratings.');
@@ -98,14 +88,12 @@ export default function AdminChildReportDetailScreen() {
         token,
         studentId,
         { note, academic_rating: academicRating, wellbeing_rating: wellbeingRating },
-        photos.map((p) => ({ uri: p.uri!, fileName: p.fileName, type: p.type })),
       );
       Alert.alert('Report added', `A report was added for ${studentName}.`);
       setShowForm(false);
       setNote('');
       setAcademicRating(null);
       setWellbeingRating(null);
-      setPhotos([]);
       await load();
     } catch (err) {
       Alert.alert('Something went wrong', err instanceof Error ? err.message : 'Please try again.');
@@ -175,18 +163,6 @@ export default function AdminChildReportDetailScreen() {
               />
               <RatingSelector label="Academic Rating" value={academicRating} onChange={setAcademicRating} />
               <RatingSelector label="Wellbeing Rating" value={wellbeingRating} onChange={setWellbeingRating} />
-
-              <Text style={styles.fieldLabel}>Photos</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 16 }}>
-                {photos.map((photo) => (
-                  <Image key={photo.uri} source={{ uri: photo.uri }} style={styles.photoThumb} />
-                ))}
-                {photos.length < 5 && (
-                  <TouchableOpacity style={styles.photoAddTile} onPress={pickPhotos}>
-                    <Text style={{ color: EMERALD, fontSize: 20 }}>+</Text>
-                  </TouchableOpacity>
-                )}
-              </ScrollView>
 
               <View style={styles.formButtonRow}>
                 <TouchableOpacity style={styles.cancelButton} onPress={() => setShowForm(false)}>

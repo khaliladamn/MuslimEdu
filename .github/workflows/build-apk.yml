@@ -51,13 +51,7 @@ jobs:
             "react-native-screens@^4" \
             "react-native-safe-area-context@^5" \
             react-native-keychain \
-            react-native-svg \
-            react-native-image-picker
-
-      - name: Add photo library permission to AndroidManifest
-        working-directory: MuslimEdu
-        run: |
-          sed -i '/<uses-permission android:name="android.permission.INTERNET" \/>/a\    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />\n    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />' android/app/src/main/AndroidManifest.xml
+            react-native-svg
 
       - name: Bundle JavaScript into the APK (so it works without Metro)
         working-directory: MuslimEdu

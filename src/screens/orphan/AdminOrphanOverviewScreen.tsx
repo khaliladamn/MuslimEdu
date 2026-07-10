@@ -5,12 +5,12 @@ import {
   StyleSheet,
   FlatList,
   TouchableOpacity,
-  ActivityIndicator,
   RefreshControl,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../../context/AuthContext';
 import { fetchReportOverview, ReportOverview } from '../../services/adminOrphanReportService';
+import { Skeleton } from '../../components/Skeleton';
 
 const EMERALD = '#0F9D58';
 const EMERALD_SOFT = '#EAF7EF';
@@ -69,8 +69,16 @@ export default function AdminOrphanOverviewScreen() {
       </View>
 
       {isLoading ? (
-        <View style={styles.center}>
-          <ActivityIndicator size="large" color={EMERALD} />
+        <View style={styles.listContent}>
+          <Skeleton width="100%" height={128} borderRadius={20} style={{ marginBottom: 20 }} />
+          {[0, 1, 2, 3].map((i) => (
+            <View key={i} style={styles.childCard}>
+              <View>
+                <Skeleton width={140} height={14} style={{ marginBottom: 6 }} />
+                <Skeleton width={100} height={11} />
+              </View>
+            </View>
+          ))}
         </View>
       ) : error ? (
         <View style={styles.center}>

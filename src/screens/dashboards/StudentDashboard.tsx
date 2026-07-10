@@ -5,7 +5,6 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  ActivityIndicator,
   Alert,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
@@ -13,6 +12,7 @@ import Svg, { Defs, LinearGradient, Stop, Rect, Circle, Path, Line } from 'react
 import { useAuth } from '../../context/AuthContext';
 import { EMERALD, EMERALD_SOFT, INK, SUBTLE } from './DashboardShell';
 import { fetchReportStatus, ReportStatus } from '../../services/orphanService';
+import { Skeleton, SkeletonCircle } from '../../components/Skeleton';
 
 // --- Depth layer sizing -----------------------------------------------
 // The gradient hero covers the greeting + Profile card. It's a separate
@@ -208,7 +208,9 @@ function QuickActionCard({
         ) : null}
       </View>
       <Text style={styles.quickTitle}>{title}</Text>
-      <Text style={styles.quickDescription}>{description}</Text>
+      <Text style={styles.quickDescription} numberOfLines={2}>
+        {description}
+      </Text>
       <View style={styles.quickArrowButton}>
         <ArrowRightIcon color={EMERALD} size={15} />
       </View>
@@ -324,6 +326,7 @@ export default function StudentDashboard() {
           { height: HERO_HEIGHT, opacity: bgOpacity, transform: [{ translateY: bgTranslateY }] },
         ]}
         pointerEvents="none"
+        renderToHardwareTextureAndroid
       >
         <Svg width="100%" height="100%" style={StyleSheet.absoluteFill}>
           <Defs>
@@ -482,8 +485,14 @@ export default function StudentDashboard() {
           </View>
 
           {isLoadingStatus ? (
-            <View style={styles.overviewLoading}>
-              <ActivityIndicator color={EMERALD} />
+            <View style={styles.statsRow}>
+              {[0, 1, 2, 3].map((i) => (
+                <View key={i} style={styles.statItem}>
+                  <SkeletonCircle size={40} style={styles.mb10} />
+                  <Skeleton width={34} height={20} style={styles.mb6} />
+                  <Skeleton width={54} height={11} />
+                </View>
+              ))}
             </View>
           ) : (
             <View style={styles.statsRow}>
@@ -523,8 +532,15 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: 40,
     borderBottomRightRadius: 40,
     overflow: 'hidden',
+    // Animated transforms on Android can get promoted to their own
+    // compositing layer and paint above later siblings regardless of
+    // JSX order - explicit zIndex forces this layer to stay behind the
+    // scroll content (fixes the hero "scoop" covering the Monthly
+    // Report card).
+    zIndex: 0,
+    elevation: 0,
   },
-  scrollFlex: { flex: 1 },
+  scrollFlex: { flex: 1, zIndex: 1, elevation: 1 },
   scrollContent: { paddingHorizontal: 20, paddingBottom: 130 },
 
   headerRow: {
@@ -608,6 +624,7 @@ const styles = StyleSheet.create({
     padding: 20,
     marginBottom: 28,
     overflow: 'hidden',
+    zIndex: 1,
   },
   reportIconCircle: {
     width: 48,
@@ -641,7 +658,7 @@ const styles = StyleSheet.create({
   viewAllRow: { flexDirection: 'row', alignItems: 'center' },
   viewAllText: { fontSize: 13, fontWeight: '700', color: EMERALD, marginRight: 2 },
 
-  quickRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 24 },
+  quickRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 },
   quickCard: {
     flex: 1,
     backgroundColor: '#FFFFFF',
@@ -710,7 +727,8 @@ const styles = StyleSheet.create({
   overviewTitle: { fontSize: 16, fontWeight: '700', color: INK },
   monthPill: { flexDirection: 'row', alignItems: 'center' },
   monthPillText: { fontSize: 13, color: SUBTLE, fontWeight: '600', marginRight: 4 },
-  overviewLoading: { paddingVertical: 24, alignItems: 'center' },
+  mb6: { marginBottom: 6 },
+  mb10: { marginBottom: 10 },
   statsRow: { flexDirection: 'row', justifyContent: 'space-between' },
   statItem: { flex: 1, alignItems: 'center' },
   statIconWrap: {

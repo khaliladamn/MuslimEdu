@@ -4,7 +4,6 @@ import {
   Text,
   StyleSheet,
   FlatList,
-  ActivityIndicator,
   TouchableOpacity,
   RefreshControl,
   Image,
@@ -12,6 +11,7 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../../context/AuthContext';
 import { fetchStudents, StudentSummary } from '../../services/adminService';
+import { Skeleton, SkeletonCircle } from '../../components/Skeleton';
 
 const EMERALD = '#0F9D58';
 const INK = '#1C1C1E';
@@ -67,8 +67,16 @@ export default function StudentListScreen() {
       </View>
 
       {isLoading ? (
-        <View style={styles.center}>
-          <ActivityIndicator size="large" color={EMERALD} />
+        <View style={styles.listContent}>
+          {[0, 1, 2, 3, 4].map((i) => (
+            <View key={i} style={styles.card}>
+              <SkeletonCircle size={44} style={{ marginRight: 12 }} />
+              <View style={styles.cardBody}>
+                <Skeleton width="55%" height={14} style={{ marginBottom: 6 }} />
+                <Skeleton width="75%" height={11} />
+              </View>
+            </View>
+          ))}
         </View>
       ) : error ? (
         <View style={styles.center}>

@@ -9,6 +9,7 @@ import OrphanReportScreen from '../screens/orphan/OrphanReportScreen';
 import AdminOrphanOverviewScreen from '../screens/orphan/AdminOrphanOverviewScreen';
 import AdminChildReportDetailScreen from '../screens/orphan/AdminChildReportDetailScreen';
 import MainTabs from './MainTabs';
+import AppLaunchSkeleton from '../components/AppLaunchSkeleton';
 
 const Stack = createNativeStackNavigator();
 
@@ -16,9 +17,10 @@ export default function RootNavigator() {
   const { user, isLoading } = useAuth();
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
-  // Android already shows its own native splash (your app icon on white)
-  // automatically before any JS runs - we don't need to recreate that here.
-  // Once the saved-session check finishes, just fade the real app in.
+  // While the saved-session check runs, show a skeleton shell instead of a
+  // blank/spinner screen - same perceived wait, but it reads as "loading
+  // content" rather than "app is stuck", and there's no hard flash once
+  // the real screen fades in.
   useEffect(() => {
     if (!isLoading) {
       Animated.timing(fadeAnim, { toValue: 1, duration: 280, useNativeDriver: true }).start();
@@ -26,9 +28,7 @@ export default function RootNavigator() {
   }, [isLoading, fadeAnim]);
 
   if (isLoading) {
-    // Plain white - matches Android's native splash background, so the
-    // handoff from native splash to this is invisible instead of a flash.
-    return <View style={styles.blank} />;
+    return <AppLaunchSkeleton />;
   }
 
   return (
@@ -55,5 +55,4 @@ export default function RootNavigator() {
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
-  blank: { flex: 1, backgroundColor: '#FFFFFF' },
 });

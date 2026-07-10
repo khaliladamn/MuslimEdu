@@ -12,6 +12,7 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../../context/AuthContext';
 import { fetchReportStatus, submitReport, ReportStatus } from '../../services/orphanService';
+import { Skeleton, SkeletonCircle } from '../../components/Skeleton';
 
 const EMERALD = '#0F9D58';
 const INK = '#1C1C1E';
@@ -136,8 +137,32 @@ export default function OrphanReportScreen() {
       </View>
 
       {isLoading ? (
-        <View style={styles.center}>
-          <ActivityIndicator size="large" color={EMERALD} />
+        <View style={styles.scrollContent}>
+          <View style={styles.card}>
+            <Skeleton width="70%" height={19} style={{ marginBottom: 10 }} />
+            <Skeleton width="40%" height={13} style={{ marginBottom: 16 }} />
+            <Skeleton width="100%" height={90} borderRadius={14} style={{ marginBottom: 18 }} />
+            <View style={styles.ratingRow}>
+              {[0, 1, 2, 3, 4].map((i) => (
+                <SkeletonCircle key={i} size={48} />
+              ))}
+            </View>
+          </View>
+          <Skeleton width={140} height={12} style={{ marginBottom: 10, marginTop: 20 }} />
+          <View style={styles.card}>
+            {[0, 1, 2].map((i) => (
+              <View key={i} style={styles.timelineRow}>
+                <View style={styles.timelineTrack}>
+                  <SkeletonCircle size={14} />
+                  {i < 2 && <View style={styles.timelineLine} />}
+                </View>
+                <View style={styles.timelineContent}>
+                  <Skeleton width={90} height={13} style={{ marginBottom: 6 }} />
+                  <Skeleton width={60} height={10} />
+                </View>
+              </View>
+            ))}
+          </View>
         </View>
       ) : error ? (
         <View style={styles.center}>

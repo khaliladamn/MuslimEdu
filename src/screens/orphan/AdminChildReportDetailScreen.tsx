@@ -18,6 +18,7 @@ import {
   createChildReport,
   deleteChildReport,
 } from '../../services/adminOrphanReportService';
+import { Skeleton } from '../../components/Skeleton';
 
 const EMERALD = '#0F9D58';
 const EMERALD_SOFT = '#EAF7EF';
@@ -132,8 +133,16 @@ export default function AdminChildReportDetailScreen() {
       </View>
 
       {isLoading ? (
-        <View style={styles.center}>
-          <ActivityIndicator size="large" color={EMERALD} />
+        <View style={styles.scrollContent}>
+          <Skeleton width="100%" height={52} borderRadius={16} style={{ marginBottom: 20 }} />
+          <Skeleton width={80} height={12} style={{ marginBottom: 10 }} />
+          {[0, 1].map((i) => (
+            <View key={i} style={styles.reportCard}>
+              <Skeleton width={100} height={13} style={{ marginBottom: 8 }} />
+              <Skeleton width="90%" height={11} style={{ marginBottom: 6 }} />
+              <Skeleton width="60%" height={11} />
+            </View>
+          ))}
         </View>
       ) : error ? (
         <View style={styles.center}>

@@ -110,7 +110,7 @@ export default function LoginScreen() {
     <View style={styles.flex}>
       <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
       <KeyboardAvoidingView
-        style={styles.scrollContent}
+        style={styles.content}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
         {/* Header */}
@@ -130,21 +130,13 @@ export default function LoginScreen() {
         </View>
 
         <View style={styles.centerGroup}>
-          {/* Greeting */}
+          {/* Greeting - no illustration, so this doubles as the visual anchor */}
           <Text style={styles.title}>
-            Peace be{'\n'}
-            <Text style={styles.titleGreen}>upon you!</Text>
+            Peace be <Text style={styles.titleGreen}>upon you!</Text>
           </Text>
           <Text style={styles.subtitle}>
             Connect through <Text style={styles.subtitleGreen}>Education.</Text>
           </Text>
-
-          {/* Illustration */}
-          <Image
-            source={require('../assets/images/students-illustration-green.png')}
-            style={styles.illustration}
-            resizeMode="contain"
-          />
 
           {/* Form */}
           <Text style={styles.fieldLabel}>E-Mail</Text>
@@ -165,7 +157,7 @@ export default function LoginScreen() {
             />
           </View>
 
-          <Text style={[styles.fieldLabel, { marginTop: 18 }]}>Password</Text>
+          <Text style={[styles.fieldLabel, { marginTop: 14 }]}>Password</Text>
           <View style={styles.inputRow}>
             <LockIcon />
             <TextInput
@@ -242,7 +234,7 @@ export default function LoginScreen() {
           </TouchableOpacity>
 
           {/* Create your Alumni Account */}
-          <TouchableOpacity style={[styles.outlinedButton, { marginTop: 10 }]} activeOpacity={0.7}>
+          <TouchableOpacity style={[styles.outlinedButton, { marginTop: 8 }]} activeOpacity={0.7}>
             <AlumniIcon />
             <Text style={styles.outlinedButtonText}>Create your Alumni Account</Text>
             <ChevronRightIcon color={EMERALD} />
@@ -255,7 +247,10 @@ export default function LoginScreen() {
 
 const styles = StyleSheet.create({
   flex: { flex: 1, backgroundColor: '#FFFFFF' },
-  scrollContent: { flex: 1, paddingHorizontal: 24, paddingTop: 50, paddingBottom: 20 },
+  // No ScrollView on purpose - every element below is sized/spaced to fit
+  // on one screen. Adding a scroll container here would just be a safety
+  // net for a layout that shouldn't need one.
+  content: { flex: 1, paddingHorizontal: 24, paddingTop: 44, paddingBottom: 16 },
   centerGroup: { flex: 1, justifyContent: 'center' },
 
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
@@ -275,18 +270,16 @@ const styles = StyleSheet.create({
   brandLogo: { width: 28, height: 28, borderRadius: 8, marginRight: 8 },
   brandName: { fontSize: 18, fontWeight: '700', color: INK },
 
-  title: { fontSize: 30, fontWeight: '800', color: TEAL_DARK, marginTop: 14, lineHeight: 35 },
+  title: { fontSize: 26, fontWeight: '800', color: TEAL_DARK, marginTop: 20, lineHeight: 32 },
   titleGreen: { color: EMERALD },
-  subtitle: { fontSize: 14, color: SUBTLE, marginTop: 6 },
+  subtitle: { fontSize: 14, color: SUBTLE, marginTop: 6, marginBottom: 26 },
   subtitleGreen: { color: EMERALD, fontWeight: '600' },
-
-  illustration: { width: 240, height: 240, alignSelf: 'center', marginVertical: 10 },
 
   fieldLabel: { fontSize: 13, fontWeight: '700', color: INK, marginBottom: 8 },
   inputRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    height: 54,
+    height: 52,
     borderRadius: 17,
     borderWidth: 1,
     borderColor: BORDER,
@@ -303,8 +296,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginTop: 14,
-    marginBottom: 6,
+    marginTop: 12,
+    marginBottom: 4,
   },
   rememberRow: { flexDirection: 'row', alignItems: 'center' },
   checkbox: {
@@ -321,27 +314,27 @@ const styles = StyleSheet.create({
   rememberText: { fontSize: 13, color: INK },
   forgotText: { fontSize: 13, color: EMERALD, fontWeight: '600' },
 
-  errorText: { color: DANGER, fontSize: 13, marginTop: 4, marginBottom: 6, textAlign: 'center' },
+  errorText: { color: DANGER, fontSize: 13, marginTop: 4, marginBottom: 4, textAlign: 'center' },
 
   buttonWrapper: {
-    height: 54,
+    height: 52,
     borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 14,
+    marginTop: 12,
     overflow: 'hidden',
   },
   buttonDisabled: { opacity: 0.6 },
   buttonText: { color: '#FFFFFF', fontSize: 15, fontWeight: '700', letterSpacing: 1.2 },
 
-  dividerRow: { flexDirection: 'row', alignItems: 'center', marginTop: 16, marginBottom: 12 },
+  dividerRow: { flexDirection: 'row', alignItems: 'center', marginTop: 14, marginBottom: 10 },
   dividerLine: { flex: 1, height: 1, backgroundColor: BORDER },
   dividerText: { fontSize: 12, color: SUBTLE, marginHorizontal: 10, fontWeight: '600' },
 
   outlinedButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    height: 52,
+    height: 50,
     borderRadius: 17,
     borderWidth: 1.4,
     borderColor: EMERALD,

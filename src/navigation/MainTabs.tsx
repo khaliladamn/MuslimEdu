@@ -124,32 +124,40 @@ function ReportsPlaceholder() {
   );
 }
 
+function HomeRouter() {
+  const { user } = useAuth();
+  if (!user) return null;
+  return getDashboardForRole(user.role);
+}
+
+function ReportsRouter() {
+  const { user } = useAuth();
+  if (!user) return null;
+
+  const isAdmin = user.role === 'admin' || user.role === 'superadmin';
+
+  if (user.is_orphan) {
+    return isAdmin ? <AdminOrphanOverviewScreen /> : <OrphanReportScreen />;
+  }
+  return <ReportsPlaceholder />;
+}
+
 export default function MainTabs() {
   const { user } = useAuth();
   if (!user) return null;
 
   const isAdminRole = user.role === 'admin' || user.role === 'superadmin';
-  const HomeScreen = () => getDashboardForRole(user.role);
 
   return (
     <Tab.Navigator
       screenOptions={{ headerShown: false }}
       tabBar={(props) => <FloatingTabBar {...props} />}
     >
-      <Tab.Screen name="Home" component={HomeScreen} />
+      <Tab.Screen name="Home" component={HomeRouter} />
 
       {isAdminRole && <Tab.Screen name="Admission" component={AdmissionPlaceholder} />}
 
-      <Tab.Screen
-        name="Reports"
-        component={
-          user.is_orphan
-            ? isAdminRole
-              ? AdminOrphanOverviewScreen
-              : OrphanReportScreen
-            : ReportsPlaceholder
-        }
-      />
+      <Tab.Screen name="Reports" component={ReportsRouter} />
 
       <Tab.Screen name="Chat" component={ChatPlaceholder} />
       <Tab.Screen name="Menu" component={MenuScreen} />
@@ -172,11 +180,17 @@ const styles = StyleSheet.create({
     borderRadius: 30,
     paddingVertical: 10,
     paddingHorizontal: 10,
+    borderWidth: 1,
+    borderColor: '#EDEEF0',
     shadowColor: '#000',
-    shadowOpacity: 0.12,
-    shadowRadius: 16,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 8,
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    // No `elevation` here on purpose - Android renders elevation shadows on
+    // rounded views as a hard rectangular gray box instead of a soft shadow,
+    // which showed up as a "strange bar" beneath the floating tab bar.
+    // shadowColor/shadowOpacity/etc are iOS-only, so Android simply has no
+    // shadow here - a clean tradeoff over the visual artifact.
   },
   tabItem: {
     flexDirection: 'row',

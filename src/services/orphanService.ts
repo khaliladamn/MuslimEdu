@@ -1,4 +1,4 @@
-import { API_BASE_URL } from '../config/api';
+import { API_BASE_URL, absoluteUrl } from '../config/api';
 
 export interface ReportPhoto {
   url: string;
@@ -12,36 +12,19 @@ export interface MonthlyReport {
   wellbeing_rating: number | null;
   submitted_by: string | null;
   photos: string[];
-  // Optional timestamps returned by the backend for "Submitted on ..." labels.
-  submitted_at?: string | null;
-  created_at?: string | null;
 }
 
-/**
- * One month in the rolling window the backend builds (last 12 months, or
- * since admission_date if more recent). `submitted` tells the UI whether to
- * show it as done or missing; `report` is populated only when submitted.
- */
 export interface TimelineEntry {
   report_month: string; // "2026-07"
   submitted: boolean;
   report: MonthlyReport | null;
 }
 
-/**
- * Response of POST /orphan_report_status.
- *
- * `timeline` is the canonical field the screen renders. `history` is kept
- * optional for backward-compat with older backend responses that only
- * returned the submitted reports; the screen falls back to it if `timeline`
- * is absent. Previously this interface only declared `history`, which is why
- * the screen (reading `status.timeline`) never showed any submission history.
- */
 export interface ReportStatus {
   submitted_this_month: boolean;
-  timeline: TimelineEntry[];
-  history?: MonthlyReport[];
-  current_report?: MonthlyReport | null;
+  current_report: MonthlyReport | null;
+  history: MonthlyReport[];
+  timeline?: TimelineEntry[];
 }
 
 export interface PickedPhoto {
@@ -56,7 +39,6 @@ async function authedPost(path: string, token: string, body: FormData | Record<s
   const response = await fetch(`${API_BASE_URL}${path}`, {
     method: 'POST',
     headers: {
-      Accept: 'application/json',
       ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
       Authorization: `Bearer ${token}`,
     },
@@ -72,9 +54,32 @@ async function authedPost(path: string, token: string, body: FormData | Record<s
   return data;
 }
 
-/** POST /orphan_report_status - current month status + rolling timeline */
+/**
+ * Normalizes a report's photo paths into loadable absolute URLs. The backend
+ * returns them as relative paths, which <Image> can't render - this is what
+ * made report photos silently fail to show.
+ */
+export function normalizeReportPhotos<T extends { photos?: string[] | null }>(report: T): T {
+  return {
+    ...report,
+    photos: (report.photos ?? [])
+      .map((p) => absoluteUrl(p))
+      .filter((p): p is string => !!p),
+  };
+}
+
+/** POST /orphan_report_status - current month status + full history */
 export async function fetchReportStatus(token: string): Promise<ReportStatus> {
-  return authedPost('/orphan_report_status', token, {});
+  const data = (await authedPost('/orphan_report_status', token, {})) as ReportStatus;
+  return {
+    ...data,
+    current_report: data.current_report ? normalizeReportPhotos(data.current_report) : null,
+    history: (data.history ?? []).map(normalizeReportPhotos),
+    timeline: (data.timeline ?? []).map((entry) => ({
+      ...entry,
+      report: entry.report ? normalizeReportPhotos(entry.report) : null,
+    })),
+  };
 }
 
 /**
@@ -101,5 +106,6 @@ export async function submitReport(
     });
   });
 
-  return authedPost('/orphan_report_submit', token, form);
+  const data = await authedPost('/orphan_report_submit', token, form);
+  return { ...data, report: normalizeReportPhotos(data.report) };
 }

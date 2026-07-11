@@ -1,4 +1,15 @@
-import { API_BASE_URL } from '../config/api';
+import { API_BASE_URL, absoluteUrl } from '../config/api';
+import { OrphanProfile } from './authService';
+
+export interface StudentSummary {
+  id: number;
+  name: string;
+  email: string;
+  photo: string | null;
+  class_id: number | null;
+  section_id: number | null;
+  orphan_id_number: string | null;
+}
 
 export interface AdmissionInput {
   name: string;
@@ -27,12 +38,7 @@ export interface SectionOption {
   name: string;
 }
 
-/**
- * This codebase uses POST for every route, even read-only fetches, and guards
- * everything except /login behind auth:sanctum. So every call here is an
- * authenticated POST with a bearer token - matching orphanService.ts.
- */
-async function authedPost(path: string, token: string, body: Record<string, any>) {
+async function authedPost(path: string, token: string, body: Record<string, any> = {}) {
   const response = await fetch(`${API_BASE_URL}${path}`, {
     method: 'POST',
     headers: {
@@ -56,6 +62,47 @@ async function authedPost(path: string, token: string, body: Record<string, any>
   return data;
 }
 
+/**
+ * POST /admin_children_list - all children in the admin's school.
+ * There's no separate "orphans only" endpoint: an admin's school is either
+ * entirely regular or entirely an orphanage (school-level, not per-child),
+ * so this single list already is the right one for orphanage admins.
+ *
+ * Photos are absolutized here so the list avatars actually load.
+ */
+export async function fetchStudents(token: string, search: string = ''): Promise<StudentSummary[]> {
+  const data = await authedPost('/admin_children_list', token, { search });
+  const children: StudentSummary[] = data.children ?? [];
+  return children.map((c) => ({ ...c, photo: absoluteUrl(c.photo) }));
+}
+
+export interface OrphanProfileFull extends OrphanProfile {}
+
+/** POST /admin_child_profile - a single child's full profile */
+export async function fetchChildProfile(token: string, studentId: number) {
+  return authedPost('/admin_child_profile', token, { student_id: studentId });
+}
+
+/** POST /admin_child_orphan_profile_update - save orphan-specific fields for a child */
+export async function updateOrphanProfile(
+  token: string,
+  studentId: number,
+  fields: Partial<{
+    guardian_name: string;
+    guardian_relation: string;
+    guardian_phone: string;
+    health_status: string;
+    special_needs: string;
+    admission_date: string;
+    admission_reason: string;
+  }>,
+) {
+  return authedPost('/admin_child_orphan_profile_update', token, {
+    student_id: studentId,
+    ...fields,
+  });
+}
+
 /** POST /admin_admission_single - admit one student. */
 export async function admitStudent(
   token: string,
@@ -76,6 +123,10 @@ export async function fetchSections(
   token: string,
   classId?: string,
 ): Promise<SectionOption[]> {
-  const data = await authedPost('/admin_section_list', token, classId ? { class_id: classId } : {});
+  const data = await authedPost(
+    '/admin_section_list',
+    token,
+    classId ? { class_id: classId } : {},
+  );
   return (data.sections ?? data.data ?? data ?? []) as SectionOption[];
 }

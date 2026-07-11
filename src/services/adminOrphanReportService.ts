@@ -1,5 +1,5 @@
 import { API_BASE_URL } from '../config/api';
-import { MonthlyReport, PickedPhoto } from './orphanService';
+import { MonthlyReport, PickedPhoto, normalizeReportPhotos } from './orphanService';
 
 export interface OverviewChild {
   student_id: number;
@@ -41,10 +41,13 @@ export async function fetchReportOverview(token: string, month?: string): Promis
   return authedPost('/admin_orphan_report_overview', token, month ? { month } : {});
 }
 
-/** POST /admin_orphan_report_list - full report history for one child */
+/**
+ * POST /admin_orphan_report_list - full report history for one child.
+ * Photos are absolutized so the thumbnails on the detail screen load.
+ */
 export async function fetchChildReports(token: string, studentId: number): Promise<MonthlyReport[]> {
   const data = await authedPost('/admin_orphan_report_list', token, { student_id: studentId });
-  return data.reports;
+  return (data.reports ?? []).map(normalizeReportPhotos);
 }
 
 /** POST /admin_orphan_report_create - admin creates a report on a child's behalf */

@@ -1,40 +1,80 @@
 import React from 'react';
-import { View, StyleSheet } from 'react-native';
+import { View, StyleSheet, Platform } from 'react-native';
 import { Skeleton, SkeletonCircle } from './Skeleton';
 
 /**
- * Shown for the brief moment RootNavigator is checking Keychain / validating
- * a stored token, before it knows whether to render Login or a role
- * dashboard. Kept role-agnostic on purpose - a generic header + card shape
- * feels responsive without pretending to know content we don't have yet.
+ * Launch skeleton shaped like the Login screen (the screen an unauthenticated
+ * user lands on). Matching the real layout means when the session check
+ * finishes there's no jump: the greyed shapes sit exactly where the logo,
+ * hero, inputs, and buttons will appear.
  */
 export default function AppLaunchSkeleton() {
   return (
-    <View style={styles.flex}>
-      <View style={styles.headerRow}>
-        <View>
-          <Skeleton width={120} height={12} style={styles.mb8} />
-          <Skeleton width={180} height={22} />
+    <View style={styles.screen}>
+      {/* Header: centered logo + brand name */}
+      <View style={styles.header}>
+        <SkeletonCircle size={34} />
+        <Skeleton width={110} height={20} borderRadius={6} style={styles.brandName} />
+      </View>
+
+      {/* Hero: headline block on the left, illustration square on the right */}
+      <View style={styles.hero}>
+        <View style={styles.heroText}>
+          <Skeleton width={'80%'} height={34} borderRadius={8} />
+          <Skeleton width={'60%'} height={34} borderRadius={8} style={styles.mt8} />
+          <Skeleton width={'70%'} height={14} borderRadius={6} style={styles.mt14} />
         </View>
-        <SkeletonCircle size={54} />
+        <Skeleton width={150} height={150} borderRadius={20} />
       </View>
 
-      <Skeleton width="100%" height={140} borderRadius={20} style={styles.mb16} />
-      <Skeleton width="100%" height={90} borderRadius={20} style={styles.mb16} />
+      {/* Email field */}
+      <Skeleton width={60} height={14} borderRadius={6} style={styles.mt24} />
+      <Skeleton width={'100%'} height={58} borderRadius={18} style={styles.mt10} />
 
-      <View style={styles.row}>
-        <Skeleton width="31%" height={100} borderRadius={16} />
-        <Skeleton width="31%" height={100} borderRadius={16} />
-        <Skeleton width="31%" height={100} borderRadius={16} />
+      {/* Password field */}
+      <Skeleton width={80} height={14} borderRadius={6} style={styles.mt20} />
+      <Skeleton width={'100%'} height={58} borderRadius={18} style={styles.mt10} />
+
+      {/* Remember me / forgot */}
+      <View style={styles.rowBetween}>
+        <Skeleton width={120} height={14} borderRadius={6} />
+        <Skeleton width={100} height={14} borderRadius={6} />
       </View>
+
+      {/* Log in button */}
+      <Skeleton width={'100%'} height={58} borderRadius={29} style={styles.mt20} />
+
+      {/* Get Started card */}
+      <Skeleton width={'100%'} height={82} borderRadius={22} style={styles.mt20} />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  flex: { flex: 1, backgroundColor: '#FFFFFF', paddingHorizontal: 20, paddingTop: 60 },
-  headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 28 },
-  row: { flexDirection: 'row', justifyContent: 'space-between' },
-  mb8: { marginBottom: 8 },
-  mb16: { marginBottom: 16 },
+  screen: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 24,
+    paddingTop: Platform.OS === 'ios' ? 60 : 40,
+  },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
+  brandName: { marginLeft: 8 },
+  hero: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 20,
+  },
+  heroText: { flex: 1, paddingRight: 12 },
+  rowBetween: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 16,
+  },
+  mt8: { marginTop: 8 },
+  mt10: { marginTop: 10 },
+  mt14: { marginTop: 14 },
+  mt20: { marginTop: 20 },
+  mt24: { marginTop: 24 },
 });

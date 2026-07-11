@@ -16,6 +16,7 @@ import {
   Easing,
   Pressable,
   PanResponder,
+  ScrollView,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import Svg, { Path, Circle, Rect, Line } from 'react-native-svg';
@@ -69,13 +70,6 @@ function CheckIcon({ color = WHITE, size = 14 }: { color?: string; size?: number
     </Svg>
   );
 }
-function ArrowRightIcon({ color = WHITE, size = 20 }: { color?: string; size?: number }) {
-  return (
-    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-      <Path d="M5 12h13M13 6l6 6-6 6" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
-    </Svg>
-  );
-}
 function SchoolIcon({ color = BRAND_GREEN, size = 24 }: { color?: string; size?: number }) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
@@ -89,14 +83,6 @@ function AlumniIcon({ color = BRAND_GREEN, size = 24 }: { color?: string; size?:
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
       <Path d="M12 4L2 9l10 5 8-4v6" stroke={color} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" />
       <Path d="M6 12v4c0 1.3 2.7 2.5 6 2.5s6-1.2 6-2.5v-4" stroke={color} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" />
-    </Svg>
-  );
-}
-function RocketIcon({ color = WHITE, size = 24 }: { color?: string; size?: number }) {
-  return (
-    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-      <Path d="M5 15c-1.5 1.5-2 5-2 5s3.5-.5 5-2M14 4c3-1 6 0 6 0s1 3 0 6l-7 7-5-5z" stroke={color} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" />
-      <Circle cx="15" cy="9" r="1.6" stroke={color} strokeWidth={1.8} />
     </Svg>
   );
 }
@@ -128,12 +114,7 @@ function GetStartedSheet({
   const animateOut = (cb?: () => void) => {
     Animated.parallel([
       Animated.timing(backdrop, { toValue: 0, duration: 200, useNativeDriver: true }),
-      Animated.timing(translateY, {
-        toValue: height,
-        duration: 240,
-        easing: Easing.in(Easing.quad),
-        useNativeDriver: true,
-      }),
+      Animated.timing(translateY, { toValue: height, duration: 240, easing: Easing.in(Easing.quad), useNativeDriver: true }),
     ]).start(() => {
       setMounted(false);
       cb?.();
@@ -150,7 +131,6 @@ function GetStartedSheet({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible]);
 
-  // Swipe-down to dismiss
   const panResponder = useRef(
     PanResponder.create({
       onMoveShouldSetPanResponder: (_, g) => g.dy > 6,
@@ -158,11 +138,8 @@ function GetStartedSheet({
         if (g.dy > 0) translateY.setValue(g.dy);
       },
       onPanResponderRelease: (_, g) => {
-        if (g.dy > 90) {
-          animateOut(onClose);
-        } else {
-          Animated.spring(translateY, { toValue: 0, friction: 11, tension: 70, useNativeDriver: true }).start();
-        }
+        if (g.dy > 90) animateOut(onClose);
+        else Animated.spring(translateY, { toValue: 0, friction: 11, tension: 70, useNativeDriver: true }).start();
       },
     }),
   ).current;
@@ -224,8 +201,6 @@ export default function LoginScreen() {
   const [rememberMe, setRememberMe] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
 
-  const cardScale = useRef(new Animated.Value(1)).current;
-
   const canSubmit = email.trim().length > 0 && password.length > 0 && !isSubmitting;
 
   const handleSubmit = async () => {
@@ -233,17 +208,17 @@ export default function LoginScreen() {
     await login(email.trim(), password);
   };
 
-  const pressIn = () => Animated.spring(cardScale, { toValue: 0.97, useNativeDriver: true }).start();
-  const pressOut = () => Animated.spring(cardScale, { toValue: 1, friction: 5, useNativeDriver: true }).start();
-
-  // Compact hero so the whole screen fits without scrolling.
   const heroSize = Math.min(Math.max(width * 0.4, 150), 200);
 
   return (
     <View style={styles.flex}>
       <StatusBar barStyle="dark-content" backgroundColor={WHITE} />
       <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <View style={styles.screen}>
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
           {/* Header: logo centered, no back button */}
           <View style={styles.header}>
             <Image source={require('../assets/images/app-icon.png')} style={styles.brandLogo} resizeMode="contain" />
@@ -329,33 +304,21 @@ export default function LoginScreen() {
               disabled={!canSubmit}
               activeOpacity={0.85}
             >
-              {isSubmitting ? <ActivityIndicator color={WHITE} /> : <Text style={styles.loginButtonText}>LOG IN</Text>}
+              {isSubmitting ? <ActivityIndicator color={WHITE} /> : <Text style={styles.loginButtonText}>Log In</Text>}
             </TouchableOpacity>
-          </View>
 
-          {/* Get Started card (single secondary action) */}
-          <Animated.View style={{ transform: [{ scale: cardScale }] }}>
+            {/* Simple secondary action: a plain text link, not a flashy card. */}
             <TouchableOpacity
-              style={styles.getStartedCard}
-              activeOpacity={0.9}
-              onPressIn={pressIn}
-              onPressOut={pressOut}
+              style={styles.getStartedRow}
+              activeOpacity={0.7}
               onPress={() => setSheetOpen(true)}
             >
-              <View style={styles.getStartedIcon}>
-                <RocketIcon />
-              </View>
-              <View style={styles.getStartedText}>
-                <Text style={styles.getStartedTitle}>Get Started</Text>
-                <Text style={styles.getStartedSubtitle}>Choose how you'd like to join MuslimEdu.</Text>
-              </View>
-              <View style={styles.getStartedArrow}>
-                <ArrowRightIcon />
-              </View>
-              <View style={styles.getStartedAccent} />
+              <Text style={styles.getStartedMuted}>New here? </Text>
+              <Text style={styles.getStartedLink}>Get Started</Text>
+              <ChevronRightIcon size={16} />
             </TouchableOpacity>
-          </Animated.View>
-        </View>
+          </View>
+        </ScrollView>
       </KeyboardAvoidingView>
 
       <GetStartedSheet
@@ -376,14 +339,14 @@ export default function LoginScreen() {
 
 const styles = StyleSheet.create({
   flex: { flex: 1, backgroundColor: WHITE },
-  screen: {
-    flex: 1,
+  scrollContent: {
+    flexGrow: 1,
     paddingHorizontal: 24,
     paddingTop: Platform.OS === 'ios' ? 60 : 40,
-    paddingBottom: 28,
+    paddingBottom: 32,
   },
 
-  /* Header (no back button, logo centered) */
+  /* Header */
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
   brandLogo: { width: 34, height: 34, borderRadius: 9, marginRight: 8 },
   brandName: { fontSize: 20, fontWeight: '800', color: INK, letterSpacing: 0.2 },
@@ -397,31 +360,21 @@ const styles = StyleSheet.create({
   subtitleGreen: { color: BRAND_GREEN, fontWeight: '700' },
 
   /* Form */
-  form: { marginTop: 20 },
+  form: { marginTop: 24 },
   fieldLabel: { fontSize: 14, fontWeight: '700', color: INK, marginBottom: 8 },
   passwordLabel: { marginTop: 16 },
   inputRow: {
     flexDirection: 'row',
     alignItems: 'center',
     height: 58,
-    borderRadius: 18,
+    borderRadius: 16,
     borderWidth: 1,
     borderColor: BORDER,
     backgroundColor: WHITE,
-    paddingHorizontal: 18,
-    shadowColor: '#000',
-    shadowOpacity: 0.05,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 2,
+    paddingHorizontal: 16,
   },
   input: { flex: 1, fontSize: 16, color: INK, marginLeft: 12, paddingVertical: 0 },
-  optionsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: 16,
-  },
+  optionsRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 16 },
   rememberRow: { flexDirection: 'row', alignItems: 'center' },
   checkbox: {
     width: 22,
@@ -436,70 +389,29 @@ const styles = StyleSheet.create({
   checkboxChecked: { backgroundColor: BRAND_GREEN, borderColor: BRAND_GREEN },
   rememberText: { fontSize: 14.5, color: INK },
   forgotText: { fontSize: 14.5, color: BRAND_GREEN, fontWeight: '700' },
-  errorText: { color: DANGER, fontSize: 13, marginTop: 6, textAlign: 'center' },
+  errorText: { color: DANGER, fontSize: 13, marginTop: 10, textAlign: 'center' },
+
+  /* Primary button: flat, solid, simple */
   loginButton: {
-    height: 58,
-    borderRadius: 29,
+    height: 56,
+    borderRadius: 14,
     backgroundColor: BRAND_GREEN,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 20,
-    shadowColor: BRAND_GREEN,
-    shadowOpacity: 0.35,
-    shadowRadius: 14,
-    shadowOffset: { width: 0, height: 8 },
-    elevation: 6,
+    marginTop: 24,
   },
-  buttonDisabled: { opacity: 0.5 },
-  loginButtonText: { color: WHITE, fontSize: 16, fontWeight: '800', letterSpacing: 1.5 },
+  buttonDisabled: { opacity: 0.4 },
+  loginButtonText: { color: WHITE, fontSize: 16, fontWeight: '700' },
 
-  /* Get Started card */
-  getStartedCard: {
+  /* Secondary: plain inline link */
+  getStartedRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 'auto',
-    borderRadius: 22,
-    backgroundColor: WHITE,
-    borderWidth: 1,
-    borderColor: 'rgba(15,157,88,0.28)',
-    paddingVertical: 16,
-    paddingHorizontal: 16,
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOpacity: 0.08,
-    shadowRadius: 16,
-    shadowOffset: { width: 0, height: 8 },
-    elevation: 4,
-  },
-  getStartedIcon: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: BRAND_GREEN,
-    alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 14,
+    marginTop: 22,
   },
-  getStartedText: { flex: 1 },
-  getStartedTitle: { fontSize: 16, fontWeight: '800', color: INK },
-  getStartedSubtitle: { fontSize: 12.5, color: TEXT_MUTED, marginTop: 3, lineHeight: 17 },
-  getStartedArrow: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: BRAND_GREEN,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginLeft: 10,
-  },
-  getStartedAccent: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    height: 3,
-    backgroundColor: BRAND_GREEN,
-  },
+  getStartedMuted: { fontSize: 14.5, color: TEXT_MUTED },
+  getStartedLink: { fontSize: 14.5, color: BRAND_GREEN, fontWeight: '700', marginRight: 2 },
 });
 
 const sheet = StyleSheet.create({

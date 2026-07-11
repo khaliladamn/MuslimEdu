@@ -25,7 +25,7 @@ jobs:
           distribution: temurin
           java-version: 17
 
-      - name: Create a fresh React Native project (generates android/ios folders)
+      - name: Create a fresh React Native project
         run: npx @react-native-community/cli@latest init MuslimEdu --package-name com.muslimeduu --skip-install
 
       - name: Copy your custom app code into the project
@@ -41,7 +41,7 @@ jobs:
         working-directory: MuslimEdu
         run: npm install
 
-      - name: Install navigation + feature packages (pinned together to avoid version mismatches)
+      - name: Install navigation + feature packages
         working-directory: MuslimEdu
         run: |
           npm install \
@@ -52,9 +52,10 @@ jobs:
             "react-native-safe-area-context@^5" \
             react-native-keychain \
             react-native-svg \
-            react-native-image-picker
+            react-native-image-picker \
+            react-native-linear-gradient
 
-      - name: Bundle JavaScript into the APK (so it works without Metro)
+      - name: Bundle JavaScript into the APK
         working-directory: MuslimEdu
         run: |
           mkdir -p android/app/src/main/assets

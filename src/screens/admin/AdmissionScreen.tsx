@@ -98,6 +98,11 @@ export default function AdmissionScreen() {
   const navigation = useNavigation();
   const { token } = useAuth();
 
+  // This screen is reachable two ways: pushed from the dashboard "Admission"
+  // tile (can go back) AND as the Admission bottom tab (can't go back). Only
+  // render the Back control when there's actually somewhere to go back to.
+  const canGoBack = navigation.canGoBack();
+
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -115,6 +120,19 @@ export default function AdmissionScreen() {
     if (result.didCancel || result.errorCode || !result.assets?.[0]?.uri) return;
     const a = result.assets[0];
     setPhoto({ uri: a.uri as string, fileName: a.fileName ?? null, type: a.type ?? null });
+  };
+
+  const resetForm = () => {
+    setName('');
+    setEmail('');
+    setPassword('');
+    setGender('male');
+    setBirthday('');
+    setPhone('');
+    setAddress('');
+    setClassId('');
+    setSectionId('');
+    setPhoto(null);
   };
 
   const validate = (): string | null => {
@@ -149,7 +167,13 @@ export default function AdmissionScreen() {
         photo,
       });
       Alert.alert('Student admitted', `${name.trim()} has been added.`, [
-        { text: 'Done', onPress: () => navigation.goBack() },
+        {
+          text: 'Done',
+          onPress: () => {
+            resetForm();
+            if (canGoBack) navigation.goBack();
+          },
+        },
       ]);
     } catch (e) {
       Alert.alert('Admission failed', e instanceof Error ? e.message : 'Please try again.');
@@ -164,12 +188,16 @@ export default function AdmissionScreen() {
     <View style={styles.flex}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()} hitSlop={12}>
-          <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
-            <Polyline points="15 5 8 12 15 19" stroke={EMERALD} strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round" />
-          </Svg>
-          <Text style={styles.backText}>Back</Text>
-        </TouchableOpacity>
+        {canGoBack ? (
+          <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()} hitSlop={12}>
+            <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
+              <Polyline points="15 5 8 12 15 19" stroke={EMERALD} strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round" />
+            </Svg>
+            <Text style={styles.backText}>Back</Text>
+          </TouchableOpacity>
+        ) : (
+          <View style={styles.backBtn} />
+        )}
         <Text style={styles.headerTitle}>New Admission</Text>
         <View style={styles.backBtn} />
       </View>
@@ -303,7 +331,7 @@ const styles = StyleSheet.create({
   backBtn: { flexDirection: 'row', alignItems: 'center', minWidth: 72 },
   backText: { color: EMERALD, fontSize: 16, fontWeight: '600', marginLeft: 2 },
   headerTitle: { fontSize: 18, fontWeight: '700', color: INK },
-  scroll: { padding: 16, paddingBottom: 48 },
+  scroll: { padding: 16, paddingBottom: 130 },
 
   card: {
     backgroundColor: '#FFFFFF',

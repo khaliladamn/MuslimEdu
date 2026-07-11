@@ -4,6 +4,7 @@ import { MonthlyReport, PickedPhoto, normalizeReportPhotos } from './orphanServi
 export interface OverviewChild {
   student_id: number;
   name: string;
+  photo: string | null;
   submitted: boolean;
   submitted_by: string | null;
 }

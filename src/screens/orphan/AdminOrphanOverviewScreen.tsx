@@ -6,6 +6,7 @@ import {
   FlatList,
   TouchableOpacity,
   RefreshControl,
+  Image,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import Svg, { Path, Circle, Rect, Line, Polyline } from 'react-native-svg';
@@ -28,8 +29,20 @@ const MONTH_NAMES = [
   'July', 'August', 'September', 'October', 'November', 'December',
 ];
 
-function Avatar({ name, submitted }: { name: string; submitted: boolean }) {
+function Avatar({ name, photo, submitted }: { name: string; photo: string | null; submitted: boolean }) {
+  const [photoFailed, setPhotoFailed] = useState(false);
   const initial = name?.trim()?.[0]?.toUpperCase() ?? '?';
+
+  if (photo && !photoFailed) {
+    return (
+      <Image
+        source={{ uri: photo }}
+        style={styles.avatarPhoto}
+        onError={() => setPhotoFailed(true)}
+      />
+    );
+  }
+
   return (
     <View style={[styles.avatar, { backgroundColor: submitted ? EMERALD_SOFT : DANGER_SOFT }]}>
       <Text style={[styles.avatarText, { color: submitted ? EMERALD : DANGER }]}>{initial}</Text>
@@ -146,7 +159,7 @@ export default function AdminOrphanOverviewScreen() {
               }
             >
               <View style={[styles.statusDot, { backgroundColor: item.submitted ? EMERALD : DANGER }]} />
-              <Avatar name={item.name} submitted={item.submitted} />
+              <Avatar name={item.name} photo={item.photo} submitted={item.submitted} />
               <View style={styles.flex1}>
                 <Text style={styles.childName}>{item.name}</Text>
                 {item.submitted ? (
@@ -249,6 +262,13 @@ const styles = StyleSheet.create({
     marginRight: 12,
   },
   avatarText: { fontSize: 16, fontWeight: '700' },
+  avatarPhoto: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    marginRight: 12,
+    backgroundColor: '#F0F0F0',
+  },
   childName: { fontSize: 15, fontWeight: '700', color: INK },
   childSubmitted: { fontSize: 12.5, color: EMERALD, marginTop: 2, fontWeight: '600' },
   childMissing: { fontSize: 12.5, color: DANGER, marginTop: 2, fontWeight: '600' },

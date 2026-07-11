@@ -1,185 +1,187 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
+  Animated,
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
   Alert,
-  Animated,
-  useWindowDimensions,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import LinearGradient from 'react-native-linear-gradient';
-import Svg, { Path, Circle, Rect, Line } from 'react-native-svg';
+import Svg, { Defs, LinearGradient, Stop, Rect, Circle, Path, Line, Polyline, Polygon } from 'react-native-svg';
 import { useAuth } from '../../context/AuthContext';
 import { EMERALD, EMERALD_SOFT, INK, SUBTLE } from './DashboardShell';
 import { fetchReportStatus, ReportStatus } from '../../services/orphanService';
 import { Skeleton, SkeletonCircle } from '../../components/Skeleton';
 
-/* ------------------------------------------------------------------ *
- * Palette
- * ------------------------------------------------------------------ */
-const DARK_TOP = '#0F4A34';
-const DARK_BOTTOM = '#062418';
-const PALE_GREEN = '#9FE3BC';
-const GLASS_BG = 'rgba(12,44,32,0.62)';
-const GLASS_BORDER = 'rgba(255,255,255,0.14)';
-const GLASS_DIVIDER = 'rgba(255,255,255,0.10)';
-const WHITE = '#FFFFFF';
+// --- Depth layer sizing -----------------------------------------------
+// The gradient hero covers the greeting + Profile card. It's a separate
+// Animated layer sitting behind the ScrollView content, so it can move
+// and fade independently of the cards scrolling on top of it.
+const HERO_HEIGHT = 430;
+const PARALLAX_FACTOR = 0.5; // background travels at half the content's scroll speed
 
-// Parallax: the dark header background scrolls at 45% of the content speed
-// and fades out as it goes, so the cards glide over it and the header melts
-// into the white page (Apple-style depth).
-const HEADER_BG_H = 500;
-const PARALLAX = 0.45;
+const DARK_TOP = '#123F2E';
+const DARK_BOTTOM = '#04140D';
+const PALE_GREEN = '#8FD9AE';
+const GLASS_BG = 'rgba(255,255,255,0.07)';
+const GLASS_BORDER = 'rgba(255,255,255,0.14)';
+const GLASS_DIVIDER = 'rgba(255,255,255,0.12)';
 
 const MONTH_NAMES = [
   'January', 'February', 'March', 'April', 'May', 'June',
   'July', 'August', 'September', 'October', 'November', 'December',
 ];
 
-/* ------------------------------- Icons ------------------------------ */
-function PersonIcon({ color = PALE_GREEN, size = 20 }: { color?: string; size?: number }) {
+// --- Inline icons (react-native-svg) ---
+function PersonIcon({ color = PALE_GREEN, size = 18 }: { color?: string; size?: number }) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-      <Circle cx="12" cy="8" r="3.4" stroke={color} strokeWidth={1.8} />
-      <Path d="M5 20c0-3.6 3.1-6 7-6s7 2.4 7 6" stroke={color} strokeWidth={1.8} strokeLinecap="round" />
+      <Circle cx={12} cy={8} r={4} stroke={color} strokeWidth={2} />
+      <Path d="M4 20c0-3.3 3.6-5 8-5s8 1.7 8 5" stroke={color} strokeWidth={2} strokeLinecap="round" />
     </Svg>
   );
 }
-function MailIcon({ color = PALE_GREEN, size = 20 }: { color?: string; size?: number }) {
+function MailIcon({ color = PALE_GREEN, size = 18 }: { color?: string; size?: number }) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-      <Rect x="3" y="5" width="18" height="14" rx="3" stroke={color} strokeWidth={1.8} />
-      <Path d="M4 7l8 6 8-6" stroke={color} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" />
+      <Rect x={3} y={5} width={18} height={14} rx={2} stroke={color} strokeWidth={2} />
+      <Path d="M4 7l8 6 8-6" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
     </Svg>
   );
 }
-function IdCardIcon({ color = PALE_GREEN, size = 20 }: { color?: string; size?: number }) {
+function IdCardIcon({ color = PALE_GREEN, size = 18 }: { color?: string; size?: number }) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-      <Rect x="3" y="5" width="18" height="14" rx="3" stroke={color} strokeWidth={1.8} />
-      <Circle cx="8.5" cy="11" r="2" stroke={color} strokeWidth={1.6} />
-      <Path d="M13 10h5M13 13.5h5M5.5 15.5c.6-1.3 1.6-2 3-2s2.4.7 3 2" stroke={color} strokeWidth={1.6} strokeLinecap="round" />
+      <Rect x={3} y={5} width={18} height={14} rx={2} stroke={color} strokeWidth={2} />
+      <Circle cx={8.5} cy={11} r={2} stroke={color} strokeWidth={2} />
+      <Line x1={13} y1={10} x2={17} y2={10} stroke={color} strokeWidth={2} strokeLinecap="round" />
+      <Line x1={13} y1={14} x2={17} y2={14} stroke={color} strokeWidth={2} strokeLinecap="round" />
     </Svg>
   );
 }
-function PencilIcon({ color = PALE_GREEN, size = 17 }: { color?: string; size?: number }) {
+function PencilIcon({ color = PALE_GREEN, size = 16 }: { color?: string; size?: number }) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-      <Path d="M4 20h4L18.5 9.5a2 2 0 000-2.8l-1.2-1.2a2 2 0 00-2.8 0L4 16v4z" stroke={color} strokeWidth={1.8} strokeLinejoin="round" />
+      <Path d="M4 20h4L18 10l-4-4L4 16v4z" stroke={color} strokeWidth={2} strokeLinejoin="round" />
+      <Line x1={13} y1={7} x2={17} y2={11} stroke={color} strokeWidth={2} strokeLinecap="round" />
     </Svg>
   );
 }
-function DocCheckIcon({ color = WHITE, size = 26 }: { color?: string; size?: number }) {
+function DocCheckIcon({ color = '#FFFFFF', size = 24 }: { color?: string; size?: number }) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-      <Path d="M6 3h8l4 4v14H6z" stroke={color} strokeWidth={1.8} strokeLinejoin="round" />
-      <Path d="M9 13l2 2 4-4" stroke={color} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" />
+      <Path d="M6 3h8l4 4v14H6z" stroke={color} strokeWidth={2} strokeLinejoin="round" />
+      <Path d="M14 3v4h4" stroke={color} strokeWidth={2} strokeLinejoin="round" />
+      <Polyline points="8.5 14 11 16.5 15.5 11.5" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
     </Svg>
   );
 }
-function ArrowRightIcon({ color = EMERALD, size = 20 }: { color?: string; size?: number }) {
+function ArrowRightIcon({ color = EMERALD, size = 18 }: { color?: string; size?: number }) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-      <Path d="M5 12h13M13 6l6 6-6 6" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+      <Line x1={4} y1={12} x2={20} y2={12} stroke={color} strokeWidth={2} strokeLinecap="round" />
+      <Polyline points="14 6 20 12 14 18" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
     </Svg>
   );
 }
-function ChevronRightIcon({ color = EMERALD, size = 16 }: { color?: string; size?: number }) {
+function ChevronRightIcon({ color = EMERALD, size = 15 }: { color?: string; size?: number }) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-      <Path d="M9 6l6 6-6 6" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+      <Polyline points="9 5 16 12 9 19" stroke={color} strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" />
     </Svg>
   );
 }
-function ChevronDownIcon({ color = SUBTLE, size = 15 }: { color?: string; size?: number }) {
+function ChevronDownIcon({ color = SUBTLE, size = 14 }: { color?: string; size?: number }) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-      <Path d="M6 9l6 6 6-6" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+      <Polyline points="5 9 12 16 19 9" stroke={color} strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" />
     </Svg>
   );
 }
 function CalendarIcon({ color = EMERALD, size = 22 }: { color?: string; size?: number }) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-      <Rect x="3" y="5" width="18" height="16" rx="3" stroke={color} strokeWidth={1.8} />
-      <Path d="M3 9h18M8 3v3M16 3v3" stroke={color} strokeWidth={1.8} strokeLinecap="round" />
+      <Rect x={4} y={5} width={16} height={16} rx={2} stroke={color} strokeWidth={2} />
+      <Line x1={4} y1={9} x2={20} y2={9} stroke={color} strokeWidth={2} />
+      <Line x1={8} y1={3} x2={8} y2={6} stroke={color} strokeWidth={2} strokeLinecap="round" />
+      <Line x1={16} y1={3} x2={16} y2={6} stroke={color} strokeWidth={2} strokeLinecap="round" />
     </Svg>
   );
 }
 function ProgressBarsIcon({ color = EMERALD, size = 22 }: { color?: string; size?: number }) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-      <Path d="M6 20V11M12 20V5M18 20v-6" stroke={color} strokeWidth={2} strokeLinecap="round" />
+      <Line x1={6} y1={20} x2={6} y2={13} stroke={color} strokeWidth={2} strokeLinecap="round" />
+      <Line x1={12} y1={20} x2={12} y2={8} stroke={color} strokeWidth={2} strokeLinecap="round" />
+      <Line x1={18} y1={20} x2={18} y2={15} stroke={color} strokeWidth={2} strokeLinecap="round" />
     </Svg>
   );
 }
 function BellIcon({ color = EMERALD, size = 22 }: { color?: string; size?: number }) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-      <Path d="M6 9a6 6 0 1112 0c0 5 2 6 2 6H4s2-1 2-6z" stroke={color} strokeWidth={1.8} strokeLinejoin="round" />
-      <Path d="M10 20a2 2 0 004 0" stroke={color} strokeWidth={1.8} strokeLinecap="round" />
+      <Path d="M6 9a6 6 0 0 1 12 0c0 5 2 6 2 6H4s2-1 2-6z" stroke={color} strokeWidth={2} strokeLinejoin="round" />
+      <Path d="M10 19a2 2 0 0 0 4 0" stroke={color} strokeWidth={2} strokeLinecap="round" />
     </Svg>
   );
 }
 function DocumentIcon({ color = EMERALD, size = 20 }: { color?: string; size?: number }) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-      <Path d="M7 3h7l4 4v14H7z" stroke={color} strokeWidth={1.8} strokeLinejoin="round" />
-      <Path d="M10 12h6M10 16h6" stroke={color} strokeWidth={1.6} strokeLinecap="round" />
+      <Path d="M6 3h8l4 4v14H6z" stroke={color} strokeWidth={2} strokeLinejoin="round" />
+      <Path d="M14 3v4h4" stroke={color} strokeWidth={2} strokeLinejoin="round" />
+      <Line x1={9} y1={13} x2={15} y2={13} stroke={color} strokeWidth={2} strokeLinecap="round" />
+      <Line x1={9} y1={16} x2={13} y2={16} stroke={color} strokeWidth={2} strokeLinecap="round" />
     </Svg>
   );
 }
 function StarIcon({ color = EMERALD, size = 20 }: { color?: string; size?: number }) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-      <Path d="M12 4l2.4 4.9 5.4.8-3.9 3.8.9 5.4-4.8-2.5-4.8 2.5.9-5.4L4.2 9.7l5.4-.8z" stroke={color} strokeWidth={1.6} strokeLinejoin="round" />
+      <Polygon
+        points="12 3 14.7 8.6 21 9.3 16.5 13.6 17.6 20 12 16.9 6.4 20 7.5 13.6 3 9.3 9.3 8.6"
+        stroke={color}
+        strokeWidth={2}
+        strokeLinejoin="round"
+      />
     </Svg>
   );
 }
 function CheckCircleIcon({ color = EMERALD, size = 20 }: { color?: string; size?: number }) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-      <Circle cx="12" cy="12" r="9" stroke={color} strokeWidth={1.8} />
-      <Path d="M8 12l3 3 5-6" stroke={color} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" />
+      <Circle cx={12} cy={12} r={9} stroke={color} strokeWidth={2} />
+      <Polyline points="8.5 12 11 14.5 15.5 9.5" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
     </Svg>
   );
 }
 function ClockIcon({ color = EMERALD, size = 20 }: { color?: string; size?: number }) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-      <Circle cx="12" cy="12" r="9" stroke={color} strokeWidth={1.8} />
-      <Path d="M12 7v5l3.5 2" stroke={color} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" />
+      <Circle cx={12} cy={12} r={9} stroke={color} strokeWidth={2} />
+      <Polyline points="12 7 12 12 15 14" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
     </Svg>
   );
 }
 
-/* --------------------------- Building blocks --------------------------- */
 function GlassRow({
   icon,
   label,
   value,
-  divider,
 }: {
   icon: React.ReactElement;
   label: string;
   value?: string | null;
-  divider?: boolean;
 }) {
   if (!value) return null;
   return (
-    <View>
-      <View style={styles.glassRow}>
-        <View style={styles.glassRowLeft}>
-          {icon}
-          <Text style={styles.glassRowLabel}>{label}</Text>
-        </View>
-        <Text style={styles.glassRowValue} numberOfLines={1}>
-          {value}
-        </Text>
+    <View style={styles.glassRow}>
+      <View style={styles.glassRowLeft}>
+        {icon}
+        <Text style={styles.glassRowLabel}>{label}</Text>
       </View>
-      {divider ? <View style={styles.glassDivider} /> : null}
+      <Text style={styles.glassRowValue} numberOfLines={1}>{value}</Text>
     </View>
   );
 }
@@ -197,32 +199,23 @@ function QuickActionCard({
   badge?: number;
   onPress: () => void;
 }) {
-  const scale = useRef(new Animated.Value(1)).current;
   return (
-    <Animated.View style={[styles.quickCardWrap, { transform: [{ scale }] }]}>
-      <TouchableOpacity
-        style={styles.quickCard}
-        activeOpacity={0.9}
-        onPress={onPress}
-        onPressIn={() => Animated.spring(scale, { toValue: 0.96, useNativeDriver: true }).start()}
-        onPressOut={() => Animated.spring(scale, { toValue: 1, friction: 5, useNativeDriver: true }).start()}
-      >
-        <View>
-          <View style={styles.quickIconWrap}>{icon}</View>
-          {!!badge && badge > 0 ? (
-            <View style={styles.quickBadge}>
-              <Text style={styles.quickBadgeText}>{badge}</Text>
-            </View>
-          ) : null}
-        </View>
-        <Text style={styles.quickTitle}>{title}</Text>
-        <Text style={styles.quickDescription}>{description}</Text>
-        <View style={styles.quickArrowButton}>
-          <ArrowRightIcon size={16} />
-        </View>
-        <View style={styles.quickAccentBar} />
-      </TouchableOpacity>
-    </Animated.View>
+    <TouchableOpacity style={styles.quickCard} activeOpacity={0.85} onPress={onPress}>
+      <View style={styles.quickIconWrap}>
+        {icon}
+        {!!badge && badge > 0 ? (
+          <View style={styles.quickBadge}>
+            <Text style={styles.quickBadgeText}>{badge}</Text>
+          </View>
+        ) : null}
+      </View>
+      <Text style={styles.quickTitle}>{title}</Text>
+      <Text style={styles.quickDescription}>{description}</Text>
+      <View style={styles.quickArrowButton}>
+        <ArrowRightIcon color={EMERALD} size={16} />
+      </View>
+      <View style={styles.quickAccentBar} />
+    </TouchableOpacity>
   );
 }
 
@@ -252,7 +245,6 @@ function StatItem({
 export default function StudentDashboard() {
   const { user, token } = useAuth();
   const navigation = useNavigation();
-  const { width } = useWindowDimensions();
   const scrollY = useRef(new Animated.Value(0)).current;
 
   const isOrphan = !!user?.is_orphan;
@@ -262,6 +254,8 @@ export default function StudentDashboard() {
   const [isLoadingStatus, setIsLoadingStatus] = useState(isOrphan);
 
   useEffect(() => {
+    // Regular (non-orphan) students have no monthly report feature, so we
+    // never hit the report endpoint for them.
     if (!isOrphan || !token) {
       setIsLoadingStatus(false);
       return;
@@ -272,7 +266,9 @@ export default function StudentDashboard() {
       .then((data) => {
         if (!cancelled) setStatus(data);
       })
-      .catch(() => {})
+      .catch(() => {
+        // Silent - the overview stats just fall back to placeholders below.
+      })
       .finally(() => {
         if (!cancelled) setIsLoadingStatus(false);
       });
@@ -281,84 +277,75 @@ export default function StudentDashboard() {
     };
   }, [isOrphan, token]);
 
-  const handleMonthlyReportPress = useCallback(() => {
-    if (isOrphan) {
-      (navigation as any).navigate('OrphanReport');
-    } else {
-      Alert.alert('Coming soon', 'Monthly reports for this account type are on the way.');
-    }
-  }, [isOrphan, navigation]);
-
   const handlePlaceholderPress = useCallback((title: string) => {
-    Alert.alert('Coming soon', `${title} isn't wired up yet.`);
+    Alert.alert('Coming soon', `${title} isn't wired up yet - tell me which to build out next.`);
   }, []);
 
+  // --- Overview stats: wired to real submission history (orphan-only). ---
   const history = status?.history ?? [];
-  const reportsSubmitted = isOrphan ? String(history.length) : '0';
+  const reportsSubmitted = String(history.length);
   const ratings = history.flatMap((r) =>
     [r.academic_rating, r.wellbeing_rating].filter((n): n is number => n != null),
   );
   const averageScore =
-    isOrphan && ratings.length > 0
+    ratings.length > 0
       ? `${Math.round((ratings.reduce((a, b) => a + b, 0) / ratings.length / 5) * 100)}`
       : '-';
 
   const now = new Date();
   const monthLabel = `${MONTH_NAMES[now.getMonth()].slice(0, 3)} ${now.getFullYear()}`;
 
-  // Parallax + fade for the dark background layer.
-  const bgTranslate = scrollY.interpolate({
-    inputRange: [0, HEADER_BG_H],
-    outputRange: [0, -HEADER_BG_H * PARALLAX],
+  // --- Parallax + fade for the background layer only. ---
+  const bgTranslateY = scrollY.interpolate({
+    inputRange: [0, HERO_HEIGHT],
+    outputRange: [0, -HERO_HEIGHT * PARALLAX_FACTOR],
     extrapolate: 'clamp',
   });
   const bgOpacity = scrollY.interpolate({
-    inputRange: [0, HEADER_BG_H * 0.62, HEADER_BG_H],
+    inputRange: [0, HERO_HEIGHT * 0.55, HERO_HEIGHT],
     outputRange: [1, 1, 0],
     extrapolate: 'clamp',
   });
 
   return (
     <View style={styles.flex}>
-      {/* -------- Parallax dark background layer -------- */}
       <Animated.View
         style={[
           styles.bgLayer,
-          { height: HEADER_BG_H, opacity: bgOpacity, transform: [{ translateY: bgTranslate }] },
+          { height: HERO_HEIGHT, opacity: bgOpacity, transform: [{ translateY: bgTranslateY }] },
         ]}
         pointerEvents="none"
+        renderToHardwareTextureAndroid
       >
-        <LinearGradient
-          colors={[DARK_TOP, DARK_BOTTOM]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 0.4, y: 1 }}
-          style={styles.bgGradient}
-        >
-          <Svg style={StyleSheet.absoluteFill} width={width} height={HEADER_BG_H}>
-            <Circle cx={width - 40} cy={70} r={130} fill="#FFFFFF" opacity={0.03} />
-            <Circle cx={width - 90} cy={30} r={70} fill="#FFFFFF" opacity={0.04} />
-            <Path d={`M0 130 Q${width * 0.35} 70 ${width} 160`} stroke="#FFFFFF" strokeWidth={1.2} opacity={0.06} fill="none" />
-            <Path d={`M0 185 Q${width * 0.45} 120 ${width} 215`} stroke="#FFFFFF" strokeWidth={1.2} opacity={0.05} fill="none" />
-          </Svg>
-        </LinearGradient>
+        <Svg width="100%" height="100%">
+          <Defs>
+            <LinearGradient id="heroGrad" x1="0" y1="0" x2="0" y2="1">
+              <Stop offset="0" stopColor={DARK_TOP} />
+              <Stop offset="1" stopColor={DARK_BOTTOM} />
+            </LinearGradient>
+          </Defs>
+          <Rect x="0" y="0" width="100%" height="100%" fill="url(#heroGrad)" />
+          <Circle cx="85%" cy="12%" r="90" fill="rgba(255,255,255,0.04)" />
+          <Circle cx="15%" cy="30%" r="60" fill="rgba(255,255,255,0.03)" />
+        </Svg>
       </Animated.View>
 
-      {/* -------- Scrolling content -------- */}
       <Animated.ScrollView
+        style={styles.scrollFlex}
         contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
+        onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], {
+          useNativeDriver: true,
+        })}
         scrollEventThrottle={16}
-        onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], { useNativeDriver: true })}
+        showsVerticalScrollIndicator={false}
       >
         {/* Greeting */}
-        <View style={styles.greetingRow}>
-          <View style={styles.greetingTextWrap}>
+        <View style={styles.headerRow}>
+          <View>
             <Text style={styles.greetingSmall}>Assalamu Alaykum,</Text>
-            <Text style={styles.greetingName} numberOfLines={2}>
-              {user?.name}
-            </Text>
+            <Text style={styles.greetingName}>{user?.name}</Text>
           </View>
-          <TouchableOpacity onPress={() => (navigation as any).navigate('Menu')} hitSlop={10} activeOpacity={0.85}>
+          <TouchableOpacity onPress={() => (navigation as any).navigate('Menu')} hitSlop={10}>
             <View style={styles.avatarRing}>
               <View style={styles.avatarInner}>
                 <Text style={styles.avatarInitial}>{initial}</Text>
@@ -368,12 +355,12 @@ export default function StudentDashboard() {
           </TouchableOpacity>
         </View>
 
-        {/* Profile glass card */}
+        {/* Profile - glass card over the dark hero */}
         <View style={styles.glassCard}>
           <View style={styles.glassHeaderRow}>
             <View style={styles.glassHeaderLeft}>
               <View style={styles.glassIconCircle}>
-                <PersonIcon />
+                <PersonIcon color={PALE_GREEN} size={22} />
               </View>
               <View>
                 <Text style={styles.glassTitle}>Profile</Text>
@@ -382,45 +369,57 @@ export default function StudentDashboard() {
             </View>
             <TouchableOpacity
               style={styles.editButton}
-              hitSlop={8}
-              activeOpacity={0.8}
               onPress={() => handlePlaceholderPress('Editing your profile')}
+              hitSlop={8}
             >
-              <PencilIcon />
+              <PencilIcon color={PALE_GREEN} size={16} />
             </TouchableOpacity>
           </View>
 
           <View style={styles.glassDivider} />
-
-          <GlassRow icon={<PersonIcon size={19} />} label="Name" value={user?.name} divider />
-          <GlassRow icon={<MailIcon size={19} />} label="Email" value={user?.email} divider={!!user?.code} />
-          {user?.code ? <GlassRow icon={<IdCardIcon size={19} />} label="Student Code" value={user.code} /> : null}
+          <GlassRow icon={<PersonIcon />} label="Name" value={user?.name} />
+          <View style={styles.glassDivider} />
+          <GlassRow icon={<MailIcon />} label="Email" value={user?.email} />
+          {user?.code ? (
+            <>
+              <View style={styles.glassDivider} />
+              <GlassRow icon={<IdCardIcon />} label="Student Code" value={user.code} />
+            </>
+          ) : null}
         </View>
 
-        {/* Monthly Report */}
-        <TouchableOpacity activeOpacity={0.9} onPress={handleMonthlyReportPress} style={styles.reportShadow}>
-          <LinearGradient
-            colors={['#17B368', '#0B7A46']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
+        {/* Monthly Report hero card - orphan students only */}
+        {isOrphan ? (
+          <TouchableOpacity
             style={styles.reportCard}
+            activeOpacity={0.9}
+            onPress={() => (navigation as any).navigate('OrphanReport')}
           >
+            <Svg style={StyleSheet.absoluteFill}>
+              <Defs>
+                <LinearGradient id="reportGrad" x1="0" y1="0" x2="1" y2="1">
+                  <Stop offset="0" stopColor="#12A860" />
+                  <Stop offset="1" stopColor="#0B7C46" />
+                </LinearGradient>
+              </Defs>
+              <Rect x="0" y="0" width="100%" height="100%" fill="url(#reportGrad)" />
+            </Svg>
             <View style={styles.reportIconCircle}>
-              <DocCheckIcon />
+              <DocCheckIcon color="#FFFFFF" size={24} />
             </View>
             <View style={styles.reportTextWrap}>
               <Text style={styles.reportTitle}>Monthly Report</Text>
               <Text style={styles.reportSubtitle}>
-                {isOrphan && status?.submitted_this_month
-                  ? 'Submitted for this month, view your history any time'
+                {status?.submitted_this_month
+                  ? 'Submitted for this month - view your history any time'
                   : 'Submit how your month went, and see your submission history'}
               </Text>
             </View>
             <View style={styles.reportArrowButton}>
-              <ArrowRightIcon size={20} />
+              <ArrowRightIcon color={EMERALD} size={18} />
             </View>
-          </LinearGradient>
-        </TouchableOpacity>
+          </TouchableOpacity>
+        ) : null}
 
         {/* Quick Actions */}
         <View style={styles.sectionHeaderRow}>
@@ -428,30 +427,30 @@ export default function StudentDashboard() {
           <TouchableOpacity
             style={styles.viewAllRow}
             onPress={() => handlePlaceholderPress('Viewing all quick actions')}
-            activeOpacity={0.8}
           >
             <Text style={styles.viewAllText}>View All</Text>
-            <ChevronRightIcon size={15} />
+            <ChevronRightIcon color={EMERALD} size={15} />
           </TouchableOpacity>
         </View>
 
         <View style={styles.quickRow}>
+          {/* My Reports - orphan students only */}
+          {isOrphan ? (
+            <QuickActionCard
+              icon={<DocumentIcon color={EMERALD} size={20} />}
+              title="My Reports"
+              description="View your report submissions"
+              onPress={() => (navigation as any).navigate('OrphanReport')}
+            />
+          ) : null}
           <QuickActionCard
-            icon={<CalendarIcon />}
-            title="My Reports"
-            description="View your report submissions"
-            onPress={
-              isOrphan ? () => (navigation as any).navigate('OrphanReport') : () => handlePlaceholderPress('My Reports')
-            }
-          />
-          <QuickActionCard
-            icon={<ProgressBarsIcon />}
+            icon={<ProgressBarsIcon color={EMERALD} size={20} />}
             title="My Progress"
             description="Track your learning progress"
             onPress={() => handlePlaceholderPress('My Progress')}
           />
           <QuickActionCard
-            icon={<BellIcon />}
+            icon={<BellIcon color={EMERALD} size={20} />}
             title="Notifications"
             description="Stay updated with important alerts"
             badge={0}
@@ -459,54 +458,50 @@ export default function StudentDashboard() {
           />
         </View>
 
-        {/* This Month Overview */}
-        <View style={styles.overviewCard}>
-          <View style={styles.overviewHeaderRow}>
-            <Text style={styles.overviewTitle}>This Month Overview</Text>
-            <TouchableOpacity
-              style={styles.monthPill}
-              onPress={() => handlePlaceholderPress('Choosing a different month')}
-              activeOpacity={0.8}
-            >
-              <Text style={styles.monthPillText}>{monthLabel}</Text>
-              <ChevronDownIcon />
-            </TouchableOpacity>
-          </View>
-
-          {isLoadingStatus ? (
-            <View style={styles.statsRow}>
-              {[0, 1, 2, 3].map((i) => (
-                <View key={i} style={styles.statItem}>
-                  <SkeletonCircle size={42} />
-                  <Skeleton width={34} height={20} style={styles.mb6} />
-                  <Skeleton width={54} height={10} />
-                </View>
-              ))}
-            </View>
-          ) : (
-            <View style={styles.statsRow}>
-              <StatItem icon={<DocumentIcon />} value={reportsSubmitted} label="Reports Submitted" />
-              <View style={styles.statDivider} />
-              <StatItem
-                icon={<StarIcon />}
-                value={averageScore}
-                unit={averageScore !== '-' ? '%' : undefined}
-                label="Average Score"
-              />
-              <View style={styles.statDivider} />
-              <StatItem icon={<CheckCircleIcon />} value="-" label="Activities Completed" />
-              <View style={styles.statDivider} />
-              <StatItem icon={<ClockIcon />} value="-" label="Time Spent" />
-            </View>
-          )}
-        </View>
-
+        {/* This Month Overview - orphan students only (it's report-backed) */}
         {isOrphan ? (
-          <View style={styles.noteBox}>
-            <Text style={styles.noteText}>
-              Reports Submitted and Average Score are wired to your real submission history.
-              Activities Completed and Time Spent will connect once those features are built.
-            </Text>
+          <View style={styles.overviewCard}>
+            <View style={styles.overviewHeaderRow}>
+              <Text style={styles.overviewTitle}>This Month Overview</Text>
+              <TouchableOpacity
+                style={styles.monthPill}
+                onPress={() => handlePlaceholderPress('Choosing a different month')}
+              >
+                <Text style={styles.monthPillText}>{monthLabel}</Text>
+                <ChevronDownIcon color={SUBTLE} size={14} />
+              </TouchableOpacity>
+            </View>
+
+            {isLoadingStatus ? (
+              <View style={styles.statsRow}>
+                {[0, 1, 2, 3].map((i) => (
+                  <View key={i} style={styles.statItem}>
+                    <SkeletonCircle size={40} style={styles.mb10} />
+                    <Skeleton width={30} height={20} style={styles.mb6} />
+                    <Skeleton width={50} height={11} />
+                  </View>
+                ))}
+              </View>
+            ) : (
+              <View style={styles.statsRow}>
+                <StatItem icon={<DocumentIcon color={EMERALD} size={20} />} value={reportsSubmitted} label="Reports Submitted" />
+                <StatItem
+                  icon={<StarIcon color={EMERALD} size={20} />}
+                  value={averageScore}
+                  unit={averageScore !== '-' ? '%' : undefined}
+                  label="Average Score"
+                />
+                <StatItem icon={<CheckCircleIcon color={EMERALD} size={20} />} value="-" label="Activities Completed" />
+                <StatItem icon={<ClockIcon color={EMERALD} size={20} />} value="-" label="Time Spent" />
+              </View>
+            )}
+
+            <View style={styles.noteBox}>
+              <Text style={styles.noteText}>
+                Reports Submitted and Average Score are wired to your real submission history.
+                Activities Completed and Time Spent will connect once those features are built.
+              </Text>
+            </View>
           </View>
         ) : null}
       </Animated.ScrollView>
@@ -514,238 +509,229 @@ export default function StudentDashboard() {
   );
 }
 
-const H_PAD = 20;
-
 const styles = StyleSheet.create({
-  flex: { flex: 1, backgroundColor: '#FFFFFF' },
-  scrollContent: { paddingBottom: 130 },
+  flex: { flex: 1, backgroundColor: '#FFFFFF', overflow: 'hidden' },
+  bgLayer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    borderBottomLeftRadius: 40,
+    borderBottomRightRadius: 40,
+    overflow: 'hidden',
+    zIndex: 0,
+    elevation: 0,
+  },
+  scrollFlex: { flex: 1, zIndex: 1, elevation: 1 },
+  scrollContent: { paddingHorizontal: 20, paddingBottom: 130 },
 
-  /* Parallax background */
-  bgLayer: { position: 'absolute', top: 0, left: 0, right: 0, zIndex: 0 },
-  bgGradient: { flex: 1, borderBottomLeftRadius: 44, borderBottomRightRadius: 44, overflow: 'hidden' },
-
-  /* Greeting */
-  greetingRow: {
+  headerRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    paddingHorizontal: H_PAD,
-    paddingTop: 54,
-    paddingBottom: 20,
+    paddingTop: 60,
+    paddingBottom: 24,
   },
-  greetingTextWrap: { flex: 1, paddingRight: 12 },
-  greetingSmall: { fontSize: 15, color: PALE_GREEN, fontWeight: '500' },
-  greetingName: { fontSize: 30, fontWeight: '800', color: '#FFFFFF', marginTop: 6, lineHeight: 36 },
+  greetingSmall: { fontSize: 14, color: PALE_GREEN },
+  greetingName: { fontSize: 26, fontWeight: '800', color: '#FFFFFF', marginTop: 4 },
   avatarRing: {
-    width: 68,
-    height: 68,
-    borderRadius: 34,
+    width: 62,
+    height: 62,
+    borderRadius: 31,
     borderWidth: 2,
     borderColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
   },
   avatarInner: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    width: 50,
+    height: 50,
+    borderRadius: 25,
     backgroundColor: EMERALD,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  avatarInitial: { color: '#FFFFFF', fontSize: 24, fontWeight: '800' },
+  avatarInitial: { color: '#FFFFFF', fontSize: 20, fontWeight: '700' },
   avatarDot: {
     position: 'absolute',
-    top: 0,
-    right: 0,
-    width: 15,
-    height: 15,
-    borderRadius: 8,
+    top: -2,
+    right: -2,
+    width: 14,
+    height: 14,
+    borderRadius: 7,
     backgroundColor: '#5FE38A',
     borderWidth: 2,
-    borderColor: '#0F4A34',
+    borderColor: '#FFFFFF',
   },
 
-  /* Profile glass card */
   glassCard: {
-    marginHorizontal: H_PAD,
     backgroundColor: GLASS_BG,
     borderWidth: 1,
     borderColor: GLASS_BORDER,
-    borderRadius: 26,
-    padding: 22,
+    borderRadius: 24,
+    padding: 20,
+    marginBottom: 24,
   },
-  glassHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
+  glassHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
   glassHeaderLeft: { flexDirection: 'row', alignItems: 'center', flex: 1 },
   glassIconCircle: {
-    width: 46,
-    height: 46,
-    borderRadius: 23,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: 'rgba(255,255,255,0.08)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  glassTitle: { fontSize: 18, fontWeight: '700', color: '#FFFFFF' },
+  glassSubtitle: { fontSize: 12, color: 'rgba(255,255,255,0.55)', marginTop: 2 },
+  editButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  glassDivider: { height: 1, backgroundColor: GLASS_DIVIDER, marginVertical: 4 },
+  glassRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 12 },
+  glassRowLeft: { flexDirection: 'row', alignItems: 'center' },
+  glassRowLabel: { fontSize: 14, color: 'rgba(255,255,255,0.6)', marginLeft: 10 },
+  glassRowValue: { fontSize: 15, fontWeight: '700', color: '#FFFFFF', flexShrink: 1, textAlign: 'right', marginLeft: 12 },
+
+  reportCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 22,
+    padding: 20,
+    marginBottom: 28,
+    overflow: 'hidden',
+    zIndex: 1,
+  },
+  reportIconCircle: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: 'rgba(255,255,255,0.16)',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 14,
   },
-  glassTitle: { fontSize: 19, fontWeight: '800', color: '#FFFFFF' },
-  glassSubtitle: { fontSize: 12.5, color: 'rgba(255,255,255,0.55)', marginTop: 2 },
-  editButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 13,
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.12)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  glassDivider: { height: 1, backgroundColor: GLASS_DIVIDER, marginVertical: 6 },
-  glassRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 14 },
-  glassRowLeft: { flexDirection: 'row', alignItems: 'center' },
-  glassRowLabel: { fontSize: 15, color: 'rgba(255,255,255,0.62)', marginLeft: 12 },
-  glassRowValue: { fontSize: 15, fontWeight: '700', color: '#FFFFFF', flexShrink: 1, textAlign: 'right', marginLeft: 12 },
-
-  /* Monthly Report */
-  reportShadow: {
-    marginHorizontal: H_PAD,
-    marginTop: 28,
-    borderRadius: 24,
-    backgroundColor: '#0B7A46',
-    shadowColor: EMERALD,
-    shadowOpacity: 0.3,
-    shadowRadius: 16,
-    shadowOffset: { width: 0, height: 10 },
-    elevation: 6,
-  },
-  reportCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderRadius: 24,
-    padding: 20,
-    minHeight: 118,
-    overflow: 'hidden',
-  },
-  reportIconCircle: {
-    width: 58,
-    height: 58,
-    borderRadius: 29,
-    backgroundColor: 'rgba(255,255,255,0.16)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 16,
-  },
-  reportTextWrap: { flex: 1, paddingRight: 12 },
-  reportTitle: { color: '#FFFFFF', fontSize: 19, fontWeight: '800' },
-  reportSubtitle: { color: 'rgba(255,255,255,0.85)', fontSize: 12.5, marginTop: 6, lineHeight: 18 },
+  reportTextWrap: { flex: 1 },
+  reportTitle: { color: '#FFFFFF', fontSize: 18, fontWeight: '700' },
+  reportSubtitle: { color: 'rgba(255,255,255,0.82)', fontSize: 12, marginTop: 5, lineHeight: 17 },
   reportArrowButton: {
-    width: 46,
-    height: 46,
-    borderRadius: 23,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
     backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
+    marginLeft: 10,
   },
 
-  /* Section header */
   sectionHeaderRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginHorizontal: H_PAD,
-    marginTop: 34,
-    marginBottom: 16,
-  },
-  sectionTitle: { fontSize: 20, fontWeight: '800', color: INK },
-  viewAllRow: { flexDirection: 'row', alignItems: 'center' },
-  viewAllText: { fontSize: 14, fontWeight: '700', color: EMERALD, marginRight: 3 },
-
-  /* Quick actions */
-  quickRow: { flexDirection: 'row', paddingHorizontal: H_PAD - 5 },
-  quickCardWrap: { flex: 1, marginHorizontal: 5 },
-  quickCard: {
-    minHeight: 188,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    padding: 15,
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOpacity: 0.07,
-    shadowRadius: 14,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 3,
-  },
-  quickIconWrap: {
-    width: 46,
-    height: 46,
-    borderRadius: 23,
-    backgroundColor: EMERALD_SOFT,
-    alignItems: 'center',
-    justifyContent: 'center',
     marginBottom: 14,
   },
-  quickBadge: {
-    position: 'absolute',
-    top: -4,
-    left: 32,
-    minWidth: 20,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: EMERALD,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 5,
-  },
-  quickBadgeText: { color: '#FFFFFF', fontSize: 11, fontWeight: '800' },
-  quickTitle: { fontSize: 15, fontWeight: '800', color: INK, marginBottom: 5 },
-  quickDescription: { fontSize: 11.5, color: SUBTLE, lineHeight: 16 },
-  quickArrowButton: {
-    position: 'absolute',
-    right: 15,
-    bottom: 20,
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: EMERALD_SOFT,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  quickAccentBar: { position: 'absolute', left: 0, right: 0, bottom: 0, height: 4, backgroundColor: EMERALD },
+  sectionTitle: { fontSize: 19, fontWeight: '700', color: INK },
+  viewAllRow: { flexDirection: 'row', alignItems: 'center' },
+  viewAllText: { fontSize: 13, fontWeight: '700', color: EMERALD, marginRight: 2 },
 
-  /* Overview */
-  overviewCard: {
-    marginHorizontal: H_PAD,
-    marginTop: 30,
+  quickRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 },
+  quickCard: {
+    flex: 1,
     backgroundColor: '#FFFFFF',
-    borderRadius: 24,
-    padding: 22,
+    borderRadius: 18,
+    padding: 14,
+    marginHorizontal: 4,
     shadowColor: '#000',
-    shadowOpacity: 0.07,
-    shadowRadius: 16,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 3,
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 2,
+    overflow: 'hidden',
   },
-  overviewHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 22 },
-  overviewTitle: { fontSize: 17, fontWeight: '800', color: INK },
-  monthPill: { flexDirection: 'row', alignItems: 'center' },
-  monthPillText: { fontSize: 13.5, color: SUBTLE, fontWeight: '600', marginRight: 5 },
-  mb6: { marginBottom: 6, marginTop: 10 },
-  statsRow: { flexDirection: 'row', alignItems: 'flex-start' },
-  statItem: { flex: 1, alignItems: 'center' },
-  statDivider: { width: 1, alignSelf: 'stretch', backgroundColor: '#EEF1F4', marginHorizontal: 2 },
-  statIconWrap: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
+  quickIconWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: EMERALD_SOFT,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 12,
   },
+  quickBadge: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: EMERALD,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 4,
+  },
+  quickBadgeText: { color: '#FFFFFF', fontSize: 10, fontWeight: '700' },
+  quickTitle: { fontSize: 14, fontWeight: '700', color: INK, marginBottom: 4 },
+  quickDescription: { fontSize: 11, color: SUBTLE, lineHeight: 15, marginBottom: 10 },
+  quickArrowButton: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: EMERALD_SOFT,
+    alignItems: 'center',
+    justifyContent: 'center',
+    alignSelf: 'flex-end',
+  },
+  quickAccentBar: {
+    height: 3,
+    backgroundColor: EMERALD,
+    marginHorizontal: -14,
+    marginBottom: -14,
+    marginTop: 12,
+  },
+
+  overviewCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 22,
+    padding: 20,
+    shadowColor: '#000',
+    shadowOpacity: 0.05,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 2,
+  },
+  overviewHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 },
+  overviewTitle: { fontSize: 16, fontWeight: '700', color: INK },
+  monthPill: { flexDirection: 'row', alignItems: 'center' },
+  monthPillText: { fontSize: 13, color: SUBTLE, fontWeight: '600', marginRight: 4 },
+  mb6: { marginBottom: 6 },
+  mb10: { marginBottom: 10 },
+  statsRow: { flexDirection: 'row', justifyContent: 'space-between' },
+  statItem: { flex: 1, alignItems: 'center' },
+  statIconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: EMERALD_SOFT,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 10,
+  },
   statValueRow: { flexDirection: 'row', alignItems: 'flex-end' },
   statValue: { fontSize: 22, fontWeight: '800', color: INK },
   statUnit: { fontSize: 12, fontWeight: '700', color: INK, marginLeft: 1, marginBottom: 2 },
-  statLabel: { fontSize: 10.5, color: SUBTLE, textAlign: 'center', marginTop: 5, lineHeight: 14 },
+  statLabel: { fontSize: 11, color: SUBTLE, textAlign: 'center', marginTop: 4, lineHeight: 14 },
 
-  /* Note */
-  noteBox: { marginHorizontal: H_PAD, marginTop: 20, backgroundColor: EMERALD_SOFT, borderRadius: 16, padding: 16 },
+  noteBox: {
+    marginTop: 20,
+    backgroundColor: EMERALD_SOFT,
+    borderRadius: 14,
+    padding: 16,
+  },
   noteText: { fontSize: 13, color: INK, lineHeight: 19 },
 });

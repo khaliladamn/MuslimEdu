@@ -34,17 +34,37 @@ export default function RootNavigator() {
 
   return (
     <Animated.View style={[styles.flex, { opacity: fadeAnim }]}>
-      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+      <StatusBar barStyle="dark-content" />
       <NavigationContainer>
         <Stack.Navigator screenOptions={{ headerShown: false, animation: 'fade' }}>
           {user ? (
             <>
               <Stack.Screen name="MainTabs" component={MainTabs} options={{ animation: 'fade' }} />
-              <Stack.Screen name="StudentsList" component={StudentListScreen} options={{ animation: 'slide_from_right' }} />
-              <Stack.Screen name="OrphanReport" component={OrphanReportScreen} options={{ animation: 'slide_from_right' }} />
-              <Stack.Screen name="AdminOrphanOverview" component={AdminOrphanOverviewScreen} options={{ animation: 'slide_from_right' }} />
-              <Stack.Screen name="AdminChildReportDetail" component={AdminChildReportDetailScreen} options={{ animation: 'slide_from_right' }} />
-              <Stack.Screen name="Admission" component={AdmissionScreen} options={{ animation: 'slide_from_right' }} />
+              <Stack.Screen
+                name="StudentsList"
+                component={StudentListScreen}
+                options={{ animation: 'slide_from_right' }}
+              />
+              <Stack.Screen
+                name="Admission"
+                component={AdmissionScreen}
+                options={{ animation: 'slide_from_right' }}
+              />
+              <Stack.Screen
+                name="OrphanReport"
+                component={OrphanReportScreen}
+                options={{ animation: 'slide_from_right' }}
+              />
+              <Stack.Screen
+                name="AdminOrphanOverview"
+                component={AdminOrphanOverviewScreen}
+                options={{ animation: 'slide_from_right' }}
+              />
+              <Stack.Screen
+                name="AdminChildReportDetail"
+                component={AdminChildReportDetailScreen}
+                options={{ animation: 'slide_from_right' }}
+              />
             </>
           ) : (
             <Stack.Screen name="Login" component={LoginScreen} />

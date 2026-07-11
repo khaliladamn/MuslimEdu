@@ -73,3 +73,17 @@ jobs:
         with:
           name: muslimedu-debug-apk
           path: MuslimEdu/android/app/build/outputs/apk/debug/app-debug.apk
+
+      - name: Install navigation + feature packages (pinned together to avoid version mismatches)
+              working-directory: MuslimEdu
+                      run: |
+                                npm install \
+                                            "@react-navigation/native@^7" \
+                                                        "@react-navigation/native-stack@^7" \
+                                                                    "@react-navigation/bottom-tabs@^7" \
+                                                                                "react-native-screens@^4" \
+                                                                                            "react-native-safe-area-context@^5" \
+                                                                                                        react-native-keychain \
+                                                                                                                    react-native-svg \
+                                                                                                                                react-native-linear-gradient \
+                                                                                                                                            react-native-image-picker

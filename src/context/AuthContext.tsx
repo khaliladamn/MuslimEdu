@@ -10,9 +10,8 @@ import {
   loginRequest,
   fetchMe,
   logoutRequest,
-  saveSession,
+  saveToken,
   getStoredToken,
-  getStoredUser,
   clearToken,
   AuthApiError,
 } from '../services/authService';
@@ -20,7 +19,7 @@ import {
 interface AuthContextValue {
   user: AuthUser | null;
   token: string | null;
-  isLoading: boolean; // true while checking for a saved session on launch
+  isLoading: boolean; // true while checking for a saved token on launch
   isSubmitting: boolean; // true while a login request is in flight
   error: string | null;
   login: (email: string, password: string) => Promise<boolean>;
@@ -37,12 +36,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // On launch: restore the saved session immediately from the cached token +
-  // user, so the app opens straight into the dashboard. Then validate the
-  // token with /me in the background. Crucially, we ONLY log the user out if
-  // the server explicitly rejects the token (401/403). A network error or
-  // server hiccup leaves the session intact, which fixes the bug where
-  // closing and reopening the app logged you out every time.
+  // On app launch: check keychain for a saved token, and validate it via /me
   useEffect(() => {
     (async () => {
       try {
@@ -51,34 +45,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setIsLoading(false);
           return;
         }
-
-        const cachedUser = await getStoredUser();
-        if (cachedUser) {
-          // Restore session up front: user is logged in from this point.
-          setToken(storedToken);
-          setUser(cachedUser);
-          setIsLoading(false);
-        }
-
-        // Background validation / refresh.
-        try {
-          const freshUser = await fetchMe(storedToken);
-          setToken(storedToken);
-          setUser(freshUser);
-          await saveSession(storedToken, freshUser); // keep the cache fresh
-        } catch (err) {
-          const status = err instanceof AuthApiError ? err.status : -1;
-          if (status === 401 || status === 403) {
-            // Genuinely invalid/expired token: log out.
-            await clearToken();
-            setToken(null);
-            setUser(null);
-          }
-          // Any other error (network, 500, timeout): keep the restored session.
-        } finally {
-          setIsLoading(false);
-        }
+        const me = await fetchMe(storedToken);
+        setToken(storedToken);
+        setUser(me);
       } catch {
+        // Token invalid/expired - clear it silently and fall back to login screen
+        await clearToken();
+      } finally {
         setIsLoading(false);
       }
     })();
@@ -89,12 +62,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setError(null);
     try {
       const result = await loginRequest(email, password);
-      await saveSession(result.token, result.user);
+      try {
+        await saveToken(result.token);
+      } catch (storageErr) {
+        // Login itself worked, but persisting the token failed (e.g. the
+        // Keychain native module isn't linked in this build). Surface it
+        // clearly instead of hiding it behind a generic message.
+        throw new Error(
+          `Signed in, but couldn't save your session on this device: ${
+            storageErr instanceof Error ? storageErr.message : 'unknown storage error'
+          }`,
+        );
+      }
       setToken(result.token);
       setUser(result.user);
       return true;
     } catch (err) {
-      const message = err instanceof AuthApiError ? err.message : 'Something went wrong.';
+      // Show the server's message for known API errors, and the actual
+      // error text for everything else - no more silent "Something went wrong".
+      let message: string;
+      if (err instanceof AuthApiError) {
+        message = err.message;
+      } else if (err instanceof Error && err.message) {
+        message = err.message;
+      } else {
+        message = 'Something went wrong.';
+      }
       setError(message);
       return false;
     } finally {
@@ -115,7 +108,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ user, token, isLoading, isSubmitting, error, login, logout, clearError }}
+      value={{
+        user,
+        token,
+        isLoading,
+        isSubmitting,
+        error,
+        login,
+        logout,
+        clearError,
+      }}
     >
       {children}
     </AuthContext.Provider>

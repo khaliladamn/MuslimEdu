@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   Alert,
   Image,
+  Modal,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import Svg, { Path, Circle, Rect, Line, Polyline } from 'react-native-svg';
@@ -19,6 +20,7 @@ import {
   submitReport,
   ReportStatus,
   TimelineEntry,
+  MonthlyReport,
   PickedPhoto,
 } from '../../services/orphanService';
 import { Skeleton, SkeletonCircle } from '../../components/Skeleton';
@@ -126,6 +128,21 @@ function IconPlus({ color }: { color: string }) {
     </Svg>
   );
 }
+function IconClose({ color }: { color: string }) {
+  return (
+    <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
+      <Line x1={6} y1={6} x2={18} y2={18} stroke={color} strokeWidth={2.2} strokeLinecap="round" />
+      <Line x1={18} y1={6} x2={6} y2={18} stroke={color} strokeWidth={2.2} strokeLinecap="round" />
+    </Svg>
+  );
+}
+function IconCheck({ color, size = 14 }: { color: string; size?: number }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Polyline points="5 13 10 18 19 7" stroke={color} strokeWidth={3} strokeLinecap="round" strokeLinejoin="round" />
+    </Svg>
+  );
+}
 
 function SectionHead({
   icon,
@@ -173,6 +190,99 @@ function RatingSelector({
   );
 }
 
+interface TimelineMonth {
+  key: string;
+  name: string;
+  submitted: boolean;
+  submittedOn: string | null;
+  report: MonthlyReport | null;
+}
+
+function ReportDetailModal({
+  visible,
+  month,
+  onClose,
+}: {
+  visible: boolean;
+  month: TimelineMonth | null;
+  onClose: () => void;
+}) {
+  const report = month?.report ?? null;
+
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+      <View style={styles.modalBackdrop}>
+        <TouchableOpacity style={styles.modalBackdropTouch} activeOpacity={1} onPress={onClose} />
+        <View style={styles.modalCard}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>{month?.name ?? ''}</Text>
+            <TouchableOpacity onPress={onClose} hitSlop={12} style={styles.modalCloseBtn}>
+              <IconClose color={SUBTLE} />
+            </TouchableOpacity>
+          </View>
+
+          {report ? (
+            <ScrollView style={styles.modalBody} showsVerticalScrollIndicator={false}>
+              <View style={styles.modalStatusRow}>
+                <View style={[styles.statusDot, { backgroundColor: EMERALD }]} />
+                <Text style={styles.modalStatusText}>
+                  {month?.submittedOn ? `Submitted on ${month.submittedOn}` : 'Submitted'}
+                </Text>
+              </View>
+              {report.submitted_by ? (
+                <Text style={styles.modalSubmittedBy}>By {report.submitted_by}</Text>
+              ) : null}
+
+              <View style={styles.modalRatingsRow}>
+                <View style={styles.modalRatingBox}>
+                  <Text style={styles.modalRatingLabel}>Academic</Text>
+                  <Text style={styles.modalRatingValue}>
+                    {report.academic_rating != null ? `${report.academic_rating}/5` : '—'}
+                  </Text>
+                </View>
+                <View style={styles.modalRatingBox}>
+                  <Text style={styles.modalRatingLabel}>Wellbeing</Text>
+                  <Text style={styles.modalRatingValue}>
+                    {report.wellbeing_rating != null ? `${report.wellbeing_rating}/5` : '—'}
+                  </Text>
+                </View>
+              </View>
+
+              {report.note ? (
+                <View style={styles.modalNoteWrap}>
+                  <Text style={styles.modalSectionLabel}>Note</Text>
+                  <Text style={styles.modalNoteText}>{report.note}</Text>
+                </View>
+              ) : null}
+
+              {report.photos?.length ? (
+                <View style={styles.modalNoteWrap}>
+                  <Text style={styles.modalSectionLabel}>Photos</Text>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                    {report.photos.map((uri, idx) => (
+                      <Image key={`${uri}-${idx}`} source={{ uri }} style={styles.modalPhoto} />
+                    ))}
+                  </ScrollView>
+                </View>
+              ) : null}
+            </ScrollView>
+          ) : (
+            <View style={styles.modalEmptyWrap}>
+              <View style={[styles.calChip, { backgroundColor: DANGER_SOFT }]}>
+                <IconCalendar color={DANGER} />
+              </View>
+              <Text style={styles.modalEmptyTitle}>No report submitted</Text>
+              <Text style={styles.modalEmptyBody}>
+                Nothing was submitted for {month?.name} yet.
+              </Text>
+            </View>
+          )}
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
 export default function OrphanReportScreen() {
   const navigation = useNavigation();
   const { token } = useAuth();
@@ -186,6 +296,9 @@ export default function OrphanReportScreen() {
   const [wellbeingRating, setWellbeingRating] = useState<number | null>(null);
   const [photos, setPhotos] = useState<PickedPhoto[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const [selectedMonth, setSelectedMonth] = useState<TimelineMonth | null>(null);
+  const [showAllHistory, setShowAllHistory] = useState(false);
 
   const load = useCallback(async () => {
     if (!token) return;
@@ -252,15 +365,13 @@ export default function OrphanReportScreen() {
     }
   };
 
-  // Normalize the status into a timeline regardless of whether the backend
-  // returns a rolling `timeline` (preferred) or only a `history` array of
-  // submitted reports.
-  const timeline: {
-    key: string;
-    name: string;
-    submitted: boolean;
-    submittedOn: string | null;
-  }[] = (() => {
+  // Normalize the status into a full 12-month timeline regardless of whether
+  // the backend returns a rolling `timeline` (preferred) or only a `history`
+  // array of submitted reports. The backend already sends the whole year
+  // (oldest -> newest); we keep the underlying `report` on each entry so a
+  // tapped row can show the submitted note/ratings/photos, and reverse the
+  // order so the most recent month leads the list.
+  const timeline: TimelineMonth[] = (() => {
     const raw: TimelineEntry[] =
       status?.timeline ??
       (status?.history ?? []).map((r) => ({
@@ -269,25 +380,35 @@ export default function OrphanReportScreen() {
         report: r,
       }));
 
-    return raw.map((entry) => {
-      const [year, month] = entry.report_month.split('-').map(Number);
-      const submittedOn = entry.report?.submitted_at ?? entry.report?.created_at ?? null;
-      let onLabel: string | null = null;
-      if (submittedOn) {
-        const d = new Date(submittedOn);
-        if (!isNaN(d.getTime())) onLabel = `${MONTH_ABBR[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`;
-      }
-      return {
-        key: entry.report_month,
-        name: `${MONTH_NAMES[month - 1]} ${year}`,
-        submitted: entry.submitted,
-        submittedOn: onLabel,
-      };
-    });
+    return raw
+      .map((entry) => {
+        const [year, month] = entry.report_month.split('-').map(Number);
+        const submittedOn = entry.report?.submitted_at ?? entry.report?.created_at ?? null;
+        let onLabel: string | null = null;
+        if (submittedOn) {
+          const d = new Date(submittedOn);
+          if (!isNaN(d.getTime())) {
+            const hours24 = d.getHours();
+            const period = hours24 >= 12 ? 'PM' : 'AM';
+            const hours12 = hours24 % 12 === 0 ? 12 : hours24 % 12;
+            const minutes = String(d.getMinutes()).padStart(2, '0');
+            onLabel = `${MONTH_ABBR[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()} • ${hours12}:${minutes} ${period}`;
+          }
+        }
+        return {
+          key: entry.report_month,
+          name: `${MONTH_NAMES[month - 1]} ${year}`,
+          submitted: entry.submitted,
+          submittedOn: onLabel,
+          report: entry.report,
+        };
+      })
+      .reverse();
   })();
 
   const alreadySubmitted = status?.submitted_this_month ?? false;
-  const visibleTimeline = timeline.slice(0, 4);
+  const HISTORY_PREVIEW_COUNT = 5;
+  const visibleTimeline = showAllHistory ? timeline : timeline.slice(0, HISTORY_PREVIEW_COUNT);
 
   return (
     <View style={styles.flex}>
@@ -462,12 +583,14 @@ export default function OrphanReportScreen() {
           <View style={styles.card}>
             <View style={styles.historyHead}>
               <View style={styles.sectionHeadInline}>
-                <IconClock color={INK} />
+                <View style={styles.historyHeadIconChip}>
+                  <IconClock color="#FFFFFF" />
+                </View>
                 <Text style={styles.historyTitle}>Submission History</Text>
               </View>
-              {timeline.length > 4 ? (
-                <TouchableOpacity hitSlop={8}>
-                  <Text style={styles.viewAll}>View All ›</Text>
+              {timeline.length > HISTORY_PREVIEW_COUNT ? (
+                <TouchableOpacity hitSlop={8} onPress={() => setShowAllHistory((v) => !v)}>
+                  <Text style={styles.viewAll}>{showAllHistory ? 'Show less' : 'View All'} ›</Text>
                 </TouchableOpacity>
               ) : null}
             </View>
@@ -475,34 +598,65 @@ export default function OrphanReportScreen() {
             {visibleTimeline.length === 0 ? (
               <Text style={styles.emptyHistory}>No reports yet. Your first submission will show up here.</Text>
             ) : (
-              visibleTimeline.map((m, idx) => (
-                <View key={m.key} style={[styles.historyRow, idx < visibleTimeline.length - 1 && styles.historyRowBorder]}>
-                  <View style={[styles.statusDot, { backgroundColor: m.submitted ? EMERALD : DANGER }]} />
-                  <View style={[styles.calChip, { backgroundColor: m.submitted ? EMERALD_SOFT : DANGER_SOFT }]}>
-                    <IconCalendar color={m.submitted ? EMERALD : DANGER} />
-                  </View>
-                  <View style={styles.flex1}>
-                    <Text style={styles.historyMonth}>{m.name}</Text>
-                    {m.submitted ? (
-                      <Text style={styles.historySubmittedOn}>
-                        {m.submittedOn ? `Submitted on ${m.submittedOn}` : 'Submitted'}
-                      </Text>
-                    ) : (
-                      <Text style={styles.historyMissing}>Missing</Text>
-                    )}
-                  </View>
-                  {m.submitted ? (
-                    <View style={styles.submittedBadge}>
-                      <Text style={styles.submittedBadgeText}>Submitted</Text>
+              <View style={styles.timelineOuter}>
+                <View style={styles.timelineLine} />
+                {visibleTimeline.map((m, idx) => (
+                  <TouchableOpacity
+                    key={m.key}
+                    style={[styles.timelineRow, idx === visibleTimeline.length - 1 && styles.timelineRowLast]}
+                    activeOpacity={0.7}
+                    onPress={() => setSelectedMonth(m)}
+                  >
+                    <View style={styles.timelineNodeCol}>
+                      {m.submitted ? (
+                        <View style={styles.timelineNodeFilled}>
+                          <IconCheck color="#FFFFFF" size={13} />
+                        </View>
+                      ) : (
+                        <View style={styles.timelineNodeHollow} />
+                      )}
                     </View>
-                  ) : null}
-                  <Text style={styles.chevron}>›</Text>
-                </View>
-              ))
+
+                    <View style={[styles.timelineCard, m.submitted && styles.timelineCardHighlighted]}>
+                      <View style={[styles.calChip, m.submitted ? styles.calChipDark : styles.calChipMissing]}>
+                        <IconCalendar color={m.submitted ? '#FFFFFF' : DANGER} />
+                      </View>
+                      <View style={styles.flex1}>
+                        <Text style={styles.historyMonth}>{m.name}</Text>
+                        {m.submitted ? (
+                          <>
+                            <Text style={styles.historySubmittedOn}>Submitted</Text>
+                            {m.submittedOn ? (
+                              <View style={styles.timelineTimestampRow}>
+                                <IconClock color={SUBTLE} />
+                                <Text style={styles.timelineTimestampText}>{m.submittedOn}</Text>
+                              </View>
+                            ) : null}
+                          </>
+                        ) : (
+                          <Text style={styles.historyMissing}>Missing</Text>
+                        )}
+                      </View>
+                      <View style={[styles.statusBadge, m.submitted ? styles.statusBadgeOnTime : styles.statusBadgePending]}>
+                        <Text style={[styles.statusBadgeText, m.submitted ? styles.statusBadgeTextOnTime : styles.statusBadgeTextPending]}>
+                          {m.submitted ? 'On time' : 'Pending'}
+                        </Text>
+                      </View>
+                      <Text style={styles.chevron}>›</Text>
+                    </View>
+                  </TouchableOpacity>
+                ))}
+              </View>
             )}
           </View>
         </ScrollView>
       )}
+
+      <ReportDetailModal
+        visible={!!selectedMonth}
+        month={selectedMonth}
+        onClose={() => setSelectedMonth(null)}
+      />
     </View>
   );
 }
@@ -656,31 +810,149 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: 6,
   },
-  historyTitle: { fontSize: 17, fontWeight: '700', color: INK, marginLeft: 8 },
+  historyTitle: { fontSize: 17, fontWeight: '700', color: INK, marginLeft: 10 },
   viewAll: { color: EMERALD, fontSize: 14, fontWeight: '600' },
   emptyHistory: { fontSize: 13, color: SUBTLE, paddingVertical: 14, lineHeight: 19 },
-
-  historyRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14 },
-  historyRowBorder: { borderBottomWidth: 1, borderBottomColor: '#F3F4F6' },
   statusDot: { width: 8, height: 8, borderRadius: 4, marginRight: 12 },
-  calChip: {
-    width: 38,
-    height: 38,
-    borderRadius: 11,
+  historyHeadIconChip: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: INK,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 14,
   },
+
+  calChip: {
+    width: 48,
+    height: 48,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  calChipDark: { backgroundColor: INK },
+  calChipMissing: { backgroundColor: DANGER_SOFT },
   historyMonth: { fontSize: 15, fontWeight: '700', color: INK },
-  historySubmittedOn: { fontSize: 12.5, color: SUBTLE, marginTop: 2 },
+  historySubmittedOn: { fontSize: 12.5, color: EMERALD, fontWeight: '600', marginTop: 2 },
   historyMissing: { fontSize: 12.5, color: DANGER, fontWeight: '600', marginTop: 2 },
-  submittedBadge: {
-    backgroundColor: EMERALD_SOFT,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 8,
-    marginRight: 6,
+
+  timelineOuter: { position: 'relative', marginTop: 6 },
+  timelineLine: {
+    position: 'absolute',
+    left: 19,
+    top: 20,
+    bottom: 20,
+    width: 0,
+    borderLeftWidth: 1.5,
+    borderColor: '#D9DCE0',
+    borderStyle: 'solid',
   },
-  submittedBadgeText: { color: EMERALD, fontSize: 11.5, fontWeight: '700' },
-  chevron: { fontSize: 22, color: '#C4C9CF', fontWeight: '400' },
+  timelineRow: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 12 },
+  timelineRowLast: { marginBottom: 0 },
+  timelineNodeCol: { width: 40, alignItems: 'center', paddingTop: 20 },
+  timelineNodeFilled: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: INK,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  timelineNodeHollow: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 2,
+    borderColor: '#C7CBD1',
+  },
+  timelineCard: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: HAIRLINE,
+    borderRadius: 16,
+    padding: 14,
+  },
+  timelineCardHighlighted: {
+    backgroundColor: '#F4FAF7',
+    borderColor: '#DCEEE3',
+  },
+  timelineTimestampRow: { flexDirection: 'row', alignItems: 'center', marginTop: 5, gap: 5 },
+  timelineTimestampText: { fontSize: 11.5, color: SUBTLE, fontWeight: '500' },
+  statusBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    marginLeft: 8,
+  },
+  statusBadgeOnTime: { backgroundColor: EMERALD_SOFT },
+  statusBadgePending: { backgroundColor: DANGER_SOFT },
+  statusBadgeText: { fontSize: 11.5, fontWeight: '700' },
+  statusBadgeTextOnTime: { color: EMERALD },
+  statusBadgeTextPending: { color: DANGER },
+  chevron: { fontSize: 20, color: '#C4C9CF', fontWeight: '400', marginLeft: 6 },
+
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(12,16,14,0.45)',
+    justifyContent: 'flex-end',
+  },
+  modalBackdropTouch: { ...StyleSheet.absoluteFillObject },
+  modalCard: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingTop: 18,
+    paddingHorizontal: 20,
+    paddingBottom: 34,
+    maxHeight: '80%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+  },
+  modalTitle: { fontSize: 18, fontWeight: '700', color: INK },
+  modalCloseBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#F2F4F6',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalBody: { paddingBottom: 4 },
+  modalStatusRow: { flexDirection: 'row', alignItems: 'center' },
+  modalStatusText: { fontSize: 14, fontWeight: '600', color: EMERALD },
+  modalSubmittedBy: { fontSize: 12.5, color: SUBTLE, marginTop: 4, marginLeft: 20 },
+  modalRatingsRow: { flexDirection: 'row', gap: 12, marginTop: 18 },
+  modalRatingBox: {
+    flex: 1,
+    backgroundColor: '#FBFCFD',
+    borderWidth: 1,
+    borderColor: HAIRLINE,
+    borderRadius: 14,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  modalRatingLabel: { fontSize: 12, color: SUBTLE, fontWeight: '600', marginBottom: 6 },
+  modalRatingValue: { fontSize: 18, color: INK, fontWeight: '700' },
+  modalNoteWrap: { marginTop: 20 },
+  modalSectionLabel: { fontSize: 12.5, color: SUBTLE, fontWeight: '700', marginBottom: 8, textTransform: 'uppercase' },
+  modalNoteText: { fontSize: 14.5, color: INK, lineHeight: 21 },
+  modalPhoto: {
+    width: 88,
+    height: 88,
+    borderRadius: 14,
+    marginRight: 10,
+    backgroundColor: '#F0F0F0',
+  },
+  modalEmptyWrap: { alignItems: 'center', paddingVertical: 28 },
+  modalEmptyTitle: { fontSize: 16, fontWeight: '700', color: INK, marginTop: 14 },
+  modalEmptyBody: { fontSize: 13.5, color: SUBTLE, marginTop: 6, textAlign: 'center', lineHeight: 19 },
 });

@@ -1,4 +1,4 @@
-import { API_BASE_URL } from '../config/api';
+import { API_BASE_URL, absoluteUrl } from '../config/api';
 import { MonthlyReport, PickedPhoto, normalizeReportPhotos } from './orphanService';
 
 export interface OverviewChild {
@@ -7,6 +7,17 @@ export interface OverviewChild {
   photo: string | null;
   submitted: boolean;
   submitted_by: string | null;
+}
+
+/**
+ * Overview photos come back from the backend as relative paths (or null,
+ * on older backend builds that don't send one yet). Run them through
+ * absoluteUrl() the same way orphanService.normalizeReportPhotos() does
+ * for report photos - otherwise <Image> gets a relative uri, fails
+ * silently, and the row falls back to the letter avatar.
+ */
+function normalizeOverviewChild(child: OverviewChild): OverviewChild {
+  return { ...child, photo: absoluteUrl(child.photo) };
 }
 
 export interface ReportOverview {
@@ -39,7 +50,11 @@ async function authedPost(path: string, token: string, body: FormData | Record<s
 
 /** POST /admin_orphan_report_overview - submitted/missing status for all children in a given month */
 export async function fetchReportOverview(token: string, month?: string): Promise<ReportOverview> {
-  return authedPost('/admin_orphan_report_overview', token, month ? { month } : {});
+  const data = await authedPost('/admin_orphan_report_overview', token, month ? { month } : {});
+  return {
+    ...data,
+    children: (data.children ?? []).map(normalizeOverviewChild),
+  };
 }
 
 /**

@@ -12,12 +12,36 @@ export interface MonthlyReport {
   wellbeing_rating: number | null;
   submitted_by: string | null;
   photos: string[];
+  // Optional timestamps returned by the backend for "Submitted on ..." labels.
+  submitted_at?: string | null;
+  created_at?: string | null;
 }
 
+/**
+ * One month in the rolling window the backend builds (last 12 months, or
+ * since admission_date if more recent). `submitted` tells the UI whether to
+ * show it as done or missing; `report` is populated only when submitted.
+ */
+export interface TimelineEntry {
+  report_month: string; // "2026-07"
+  submitted: boolean;
+  report: MonthlyReport | null;
+}
+
+/**
+ * Response of POST /orphan_report_status.
+ *
+ * `timeline` is the canonical field the screen renders. `history` is kept
+ * optional for backward-compat with older backend responses that only
+ * returned the submitted reports; the screen falls back to it if `timeline`
+ * is absent. Previously this interface only declared `history`, which is why
+ * the screen (reading `status.timeline`) never showed any submission history.
+ */
 export interface ReportStatus {
   submitted_this_month: boolean;
-  current_report: MonthlyReport | null;
-  history: MonthlyReport[];
+  timeline: TimelineEntry[];
+  history?: MonthlyReport[];
+  current_report?: MonthlyReport | null;
 }
 
 export interface PickedPhoto {
@@ -32,6 +56,7 @@ async function authedPost(path: string, token: string, body: FormData | Record<s
   const response = await fetch(`${API_BASE_URL}${path}`, {
     method: 'POST',
     headers: {
+      Accept: 'application/json',
       ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
       Authorization: `Bearer ${token}`,
     },
@@ -47,7 +72,7 @@ async function authedPost(path: string, token: string, body: FormData | Record<s
   return data;
 }
 
-/** POST /orphan_report_status - current month status + full history */
+/** POST /orphan_report_status - current month status + rolling timeline */
 export async function fetchReportStatus(token: string): Promise<ReportStatus> {
   return authedPost('/orphan_report_status', token, {});
 }

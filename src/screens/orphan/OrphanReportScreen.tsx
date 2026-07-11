@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -9,169 +9,166 @@ import {
   ActivityIndicator,
   Alert,
   Image,
-  Animated,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import Svg, { Path, Circle, Rect, Line } from 'react-native-svg';
+import Svg, { Path, Circle, Rect, Line, Polyline } from 'react-native-svg';
+import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '../../context/AuthContext';
 import {
   fetchReportStatus,
   submitReport,
   ReportStatus,
+  TimelineEntry,
   PickedPhoto,
 } from '../../services/orphanService';
 import { Skeleton, SkeletonCircle } from '../../components/Skeleton';
 
 const EMERALD = '#0F9D58';
-const INK = '#111827';
-const SUBTLE = '#8E8E93';
-const CARD_BG = '#FFFFFF';
-const FIELD_BG = '#F3F4F6';
-const PAGE_BG = '#F5F6F8';
-const BORDER = '#E7EAEE';
-const AMBER = '#E7A400';
-const RED = '#E0637A';
-
-const MAX_PHOTOS = 5;
-const NOTE_MAX = 500;
+const EMERALD_SOFT = '#E7F5EC';
+const INK = '#1C1C1E';
+const SUBTLE = '#8A9099';
+const HAIRLINE = '#EDEEF0';
+const CANVAS = '#F6F7F9';
+const DANGER = '#E5484D';
+const DANGER_SOFT = '#FCEDED';
 
 const MONTH_NAMES = [
   'January', 'February', 'March', 'April', 'May', 'June',
   'July', 'August', 'September', 'October', 'November', 'December',
 ];
+const MONTH_ABBR = [
+  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+];
 
-/* ------------------------------------------------------------------ *
- * Image picker is loaded lazily so the screen still renders even if
- * `react-native-image-picker` isn't installed yet. If it's missing we
- * fall back to a friendly alert instead of crashing.
- * ------------------------------------------------------------------ */
-let launchImageLibrary: any = null;
-try {
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  launchImageLibrary = require('react-native-image-picker').launchImageLibrary;
-} catch {
-  launchImageLibrary = null;
+const MAX_NOTE = 500;
+const MAX_PHOTOS = 5;
+
+// --- Inline stroke icons ---
+function IconDoc({ color }: { color: string }) {
+  return (
+    <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
+      <Path d="M6 3h8l4 4v14H6z" stroke={color} strokeWidth={2} strokeLinejoin="round" />
+      <Path d="M14 3v4h4" stroke={color} strokeWidth={2} strokeLinejoin="round" />
+      <Line x1={9} y1={12} x2={15} y2={12} stroke={color} strokeWidth={2} strokeLinecap="round" />
+      <Line x1={9} y1={16} x2={13} y2={16} stroke={color} strokeWidth={2} strokeLinecap="round" />
+    </Svg>
+  );
+}
+function IconEdit({ color }: { color: string }) {
+  return (
+    <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
+      <Path d="M4 20h4L18 10l-4-4L4 16v4z" stroke={color} strokeWidth={2} strokeLinejoin="round" />
+      <Line x1={13} y1={7} x2={17} y2={11} stroke={color} strokeWidth={2} strokeLinecap="round" />
+    </Svg>
+  );
+}
+function IconCap({ color }: { color: string }) {
+  return (
+    <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
+      <Path d="M2 9l10-4 10 4-10 4L2 9z" stroke={color} strokeWidth={2} strokeLinejoin="round" />
+      <Path d="M6 11v4c0 1.1 2.7 2.5 6 2.5s6-1.4 6-2.5v-4" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+    </Svg>
+  );
+}
+function IconHeart({ color }: { color: string }) {
+  return (
+    <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
+      <Path
+        d="M12 20s-7-4.35-7-9.5A3.5 3.5 0 0 1 12 7a3.5 3.5 0 0 1 7 3.5C19 15.65 12 20 12 20z"
+        stroke={color}
+        strokeWidth={2}
+        strokeLinejoin="round"
+      />
+    </Svg>
+  );
+}
+function IconImage({ color }: { color: string }) {
+  return (
+    <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
+      <Rect x={3} y={5} width={18} height={14} rx={2} stroke={color} strokeWidth={2} />
+      <Circle cx={8.5} cy={10} r={1.5} fill={color} />
+      <Path d="M5 17l4.5-4.5L13 16l3-3 3 3.5" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+    </Svg>
+  );
+}
+function IconSend({ color }: { color: string }) {
+  return (
+    <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
+      <Path d="M21 3L10.5 13.5" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+      <Path d="M21 3l-6.5 18-4-8-8-4L21 3z" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+    </Svg>
+  );
+}
+function IconCalendar({ color }: { color: string }) {
+  return (
+    <Svg width={18} height={18} viewBox="0 0 24 24" fill="none">
+      <Rect x={4} y={5} width={16} height={16} rx={2} stroke={color} strokeWidth={2} />
+      <Line x1={4} y1={9} x2={20} y2={9} stroke={color} strokeWidth={2} />
+      <Line x1={8} y1={3} x2={8} y2={6} stroke={color} strokeWidth={2} strokeLinecap="round" />
+      <Line x1={16} y1={3} x2={16} y2={6} stroke={color} strokeWidth={2} strokeLinecap="round" />
+    </Svg>
+  );
+}
+function IconClock({ color }: { color: string }) {
+  return (
+    <Svg width={18} height={18} viewBox="0 0 24 24" fill="none">
+      <Circle cx={12} cy={12} r={9} stroke={color} strokeWidth={2} />
+      <Polyline points="12 7 12 12 15 14" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+    </Svg>
+  );
+}
+function IconPlus({ color }: { color: string }) {
+  return (
+    <Svg width={16} height={16} viewBox="0 0 24 24" fill="none">
+      <Line x1={12} y1={5} x2={12} y2={19} stroke={color} strokeWidth={2} strokeLinecap="round" />
+      <Line x1={5} y1={12} x2={19} y2={12} stroke={color} strokeWidth={2} strokeLinecap="round" />
+    </Svg>
+  );
 }
 
-/* ------------------------------- Icons ------------------------------ */
-function ChevronLeftIcon({ color = INK, size = 24 }: { color?: string; size?: number }) {
-  return (
-    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-      <Path d="M15 5l-7 7 7 7" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
-    </Svg>
-  );
-}
-function CameraIcon({ color = SUBTLE, size = 30 }: { color?: string; size?: number }) {
-  return (
-    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-      <Path d="M4 8h3l1.5-2h7L17 8h3v11H4z" stroke={color} strokeWidth={1.8} strokeLinejoin="round" />
-      <Circle cx="12" cy="13" r="3.4" stroke={color} strokeWidth={1.8} />
-    </Svg>
-  );
-}
-function PlusIcon({ color = EMERALD, size = 24 }: { color?: string; size?: number }) {
-  return (
-    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-      <Path d="M12 5v14M5 12h14" stroke={color} strokeWidth={2} strokeLinecap="round" />
-    </Svg>
-  );
-}
-function CloseIcon({ color = '#FFFFFF', size = 14 }: { color?: string; size?: number }) {
-  return (
-    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-      <Path d="M6 6l12 12M18 6L6 18" stroke={color} strokeWidth={2.4} strokeLinecap="round" />
-    </Svg>
-  );
-}
-
-/* --------------------------- Rating chips --------------------------- */
-function RatingSelector({
-  label,
-  value,
-  onChange,
+function SectionHead({
+  icon,
+  title,
+  subtitle,
 }: {
-  label: string;
-  value: number | null;
-  onChange: (v: number) => void;
+  icon: React.ReactNode;
+  title: string;
+  subtitle: string;
 }) {
   return (
-    <View style={styles.ratingBlock}>
-      <Text style={styles.fieldLabel}>{label}</Text>
-      <View style={styles.ratingRow}>
-        {[1, 2, 3, 4, 5].map((n) => (
-          <RatingChip key={n} n={n} selected={value === n} onPress={() => onChange(n)} />
-        ))}
+    <View style={styles.sectionHead}>
+      <View style={styles.iconChip}>{icon}</View>
+      <View style={styles.flex1}>
+        <Text style={styles.sectionTitle}>{title}</Text>
+        <Text style={styles.sectionSub}>{subtitle}</Text>
       </View>
     </View>
   );
 }
 
-function RatingChip({ n, selected, onPress }: { n: number; selected: boolean; onPress: () => void }) {
-  const scale = useRef(new Animated.Value(1)).current;
-  useEffect(() => {
-    Animated.spring(scale, {
-      toValue: selected ? 1.08 : 1,
-      friction: 5,
-      useNativeDriver: true,
-    }).start();
-  }, [selected, scale]);
-
-  return (
-    <TouchableOpacity activeOpacity={0.85} onPress={onPress}>
-      <Animated.View style={[styles.ratingPill, selected && styles.ratingPillSelected, { transform: [{ scale }] }]}>
-        <Text style={[styles.ratingPillText, selected && styles.ratingPillTextSelected]}>{n}</Text>
-      </Animated.View>
-    </TouchableOpacity>
-  );
-}
-
-/* --------------------------- History card --------------------------- */
-function HistoryCard({
-  name,
-  state,
-  note,
-  onView,
-  onSubmit,
+function RatingSelector({
+  value,
+  onChange,
+  labels,
 }: {
-  name: string;
-  state: 'submitted' | 'missing' | 'pending';
-  note?: string | null;
-  onView: () => void;
-  onSubmit: () => void;
+  value: number | null;
+  onChange: (v: number) => void;
+  labels: Record<number, string>;
 }) {
-  const badge =
-    state === 'submitted'
-      ? { dot: EMERALD, text: 'Submitted', color: EMERALD, bg: 'rgba(15,157,88,0.1)' }
-      : state === 'pending'
-        ? { dot: AMBER, text: 'Pending', color: AMBER, bg: 'rgba(231,164,0,0.12)' }
-        : { dot: RED, text: 'Missing', color: RED, bg: 'rgba(224,99,122,0.12)' };
-
   return (
-    <View style={styles.historyCard}>
-      <View style={styles.historyTop}>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.historyMonth}>{name}</Text>
-          {note ? (
-            <Text style={styles.historyNote} numberOfLines={1}>
-              {note}
-            </Text>
-          ) : null}
-        </View>
-        <View style={[styles.statusBadge, { backgroundColor: badge.bg }]}>
-          <View style={[styles.statusDot, { backgroundColor: badge.dot }]} />
-          <Text style={[styles.statusBadgeText, { color: badge.color }]}>{badge.text}</Text>
-        </View>
-      </View>
-
-      {state === 'submitted' ? (
-        <TouchableOpacity style={styles.historyViewBtn} activeOpacity={0.85} onPress={onView}>
-          <Text style={styles.historyViewText}>View Report</Text>
-        </TouchableOpacity>
-      ) : state === 'missing' ? (
-        <TouchableOpacity style={styles.historySubmitBtn} activeOpacity={0.7} onPress={onSubmit}>
-          <Text style={styles.historySubmitText}>Submit Now</Text>
-        </TouchableOpacity>
-      ) : null}
+    <View style={styles.ratingRow}>
+      {[1, 2, 3, 4, 5].map((n) => {
+        const selected = value === n;
+        return (
+          <TouchableOpacity key={n} style={styles.ratingCell} onPress={() => onChange(n)} activeOpacity={0.8}>
+            <View style={[styles.ratingCircle, selected && styles.ratingCircleActive]}>
+              <Text style={[styles.ratingNum, selected && styles.ratingNumActive]}>{n}</Text>
+            </View>
+            {labels[n] ? <Text style={styles.ratingLabel}>{labels[n]}</Text> : <View style={styles.ratingLabelSpacer} />}
+          </TouchableOpacity>
+        );
+      })}
     </View>
   );
 }
@@ -179,7 +176,6 @@ function HistoryCard({
 export default function OrphanReportScreen() {
   const navigation = useNavigation();
   const { token } = useAuth();
-  const scrollRef = useRef<ScrollView>(null);
 
   const [status, setStatus] = useState<ReportStatus | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -210,38 +206,29 @@ export default function OrphanReportScreen() {
   const now = new Date();
   const currentMonthLabel = `${MONTH_NAMES[now.getMonth()]} ${now.getFullYear()}`;
 
-  const pickImages = async () => {
-    if (!launchImageLibrary) {
-      Alert.alert(
-        'Photo library unavailable',
-        'Install react-native-image-picker to attach photos. The report still submits without them.',
-      );
+  const pickPhotos = async () => {
+    if (photos.length >= MAX_PHOTOS) return;
+    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!perm.granted) {
+      Alert.alert('Permission needed', 'Allow photo access to attach images to your report.');
       return;
     }
-    const remaining = MAX_PHOTOS - photos.length;
-    if (remaining <= 0) {
-      Alert.alert('Limit reached', `You can attach up to ${MAX_PHOTOS} photos.`);
-      return;
-    }
-    const result = await launchImageLibrary({
-      mediaType: 'photo',
-      selectionLimit: remaining,
-      quality: 0.8,
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsMultipleSelection: true,
+      selectionLimit: MAX_PHOTOS - photos.length,
+      quality: 0.7,
     });
-    if (result?.didCancel || !result?.assets) return;
-    const picked: PickedPhoto[] = result.assets.map((a: any) => ({
+    if (result.canceled) return;
+    const picked: PickedPhoto[] = result.assets.map((a) => ({
       uri: a.uri,
       fileName: a.fileName,
-      type: a.type,
+      type: a.mimeType,
     }));
     setPhotos((prev) => [...prev, ...picked].slice(0, MAX_PHOTOS));
   };
 
-  const removePhoto = (index: number) => {
-    setPhotos((prev) => prev.filter((_, i) => i !== index));
-  };
-
-  const canSubmit = !!academicRating && !!wellbeingRating && !isSubmitting;
+  const removePhoto = (uri: string) => setPhotos((prev) => prev.filter((p) => p.uri !== uri));
 
   const handleSubmit = async () => {
     if (!token) return;
@@ -269,168 +256,256 @@ export default function OrphanReportScreen() {
     }
   };
 
-  const scrollToForm = () => scrollRef.current?.scrollTo({ y: 0, animated: true });
+  // Normalize the status into a timeline regardless of whether the backend
+  // returns a rolling `timeline` (preferred) or only a `history` array of
+  // submitted reports. This is what previously broke the screen: it read
+  // `status.timeline` while the service typed the response as `history`.
+  const timeline: {
+    key: string;
+    name: string;
+    submitted: boolean;
+    submittedOn: string | null;
+  }[] = (() => {
+    const raw: TimelineEntry[] =
+      status?.timeline ??
+      (status?.history ?? []).map((r) => ({
+        report_month: r.report_month,
+        submitted: true,
+        report: r,
+      }));
 
-  const formatMonthLabel = (reportMonth: string) => {
-    const [year, month] = reportMonth.split('-').map(Number);
-    return `${MONTH_NAMES[month - 1]} ${year}`;
-  };
-
-  const timeline = (status?.timeline ?? []).map((entry: any) => ({
-    name: formatMonthLabel(entry.report_month),
-    state: entry.submitted ? ('submitted' as const) : ('missing' as const),
-    report: entry.report,
-  }));
+    return raw.map((entry) => {
+      const [year, month] = entry.report_month.split('-').map(Number);
+      const submittedOn = entry.report?.submitted_at ?? entry.report?.created_at ?? null;
+      let onLabel: string | null = null;
+      if (submittedOn) {
+        const d = new Date(submittedOn);
+        if (!isNaN(d.getTime())) onLabel = `${MONTH_ABBR[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`;
+      }
+      return {
+        key: entry.report_month,
+        name: `${MONTH_NAMES[month - 1]} ${year}`,
+        submitted: entry.submitted,
+        submittedOn: onLabel,
+      };
+    });
+  })();
 
   const alreadySubmitted = status?.submitted_this_month ?? false;
+  const visibleTimeline = timeline.slice(0, 4);
 
   return (
     <View style={styles.flex}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()} hitSlop={10} activeOpacity={0.8}>
-          <ChevronLeftIcon />
+        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()} hitSlop={12}>
+          <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
+            <Polyline points="15 5 8 12 15 19" stroke={EMERALD} strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round" />
+          </Svg>
+          <Text style={styles.backText}>Back</Text>
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Monthly Report</Text>
-        <View style={styles.backButton} />
+        <View style={styles.backBtn} />
       </View>
 
       {isLoading ? (
-        <View style={styles.scrollContent}>
+        <ScrollView contentContainerStyle={styles.scroll}>
           <View style={styles.card}>
-            <Skeleton width={200} height={22} />
-            <Skeleton width={90} height={26} style={{ marginTop: 12, borderRadius: 13 }} />
-            <Skeleton width={'100%'} height={120} style={{ marginTop: 20, borderRadius: 20 }} />
-            <View style={[styles.ratingRow, { marginTop: 20 }]}>
+            <Skeleton width={180} height={22} style={{ marginBottom: 8 }} />
+            <Skeleton width={100} height={14} style={{ marginBottom: 20 }} />
+            <Skeleton width={'100%'} height={90} style={{ marginBottom: 20, borderRadius: 14 }} />
+            <View style={styles.ratingRow}>
               {[0, 1, 2, 3, 4].map((i) => (
-                <SkeletonCircle key={i} size={52} />
+                <SkeletonCircle key={i} size={44} />
               ))}
             </View>
           </View>
-        </View>
+        </ScrollView>
       ) : error ? (
         <View style={styles.center}>
           <Text style={styles.errorText}>{error}</Text>
-          <TouchableOpacity style={styles.retryButton} onPress={() => load()}>
+          <TouchableOpacity style={styles.retryButton} onPress={load}>
             <Text style={styles.retryText}>Try again</Text>
           </TouchableOpacity>
         </View>
       ) : (
-        <ScrollView
-          ref={scrollRef}
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-        >
-          {/* Form card */}
+        <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+          {/* Submission form card */}
           <View style={styles.card}>
+            <View style={styles.cardHead}>
+              <View style={styles.iconChip}>
+                <IconDoc color={EMERALD} />
+              </View>
+              <View style={styles.flex1}>
+                <Text style={styles.cardTitle}>Submit Your Monthly Report</Text>
+                <Text style={styles.cardMonth}>{currentMonthLabel}</Text>
+              </View>
+            </View>
+            <View style={styles.divider} />
+
             {alreadySubmitted ? (
-              <>
-                <Text style={styles.cardTitle}>You're all set for {currentMonthLabel}</Text>
-                <Text style={styles.cardDescription}>
-                  Your report for this month has already been submitted. Check the history below
-                  to see all your submissions.
+              <View style={styles.doneBox}>
+                <Text style={styles.doneTitle}>You're all set for {currentMonthLabel}</Text>
+                <Text style={styles.doneBody}>
+                  Your report for this month is submitted. Check your submission history below.
                 </Text>
-              </>
+              </View>
             ) : (
               <>
-                <Text style={styles.cardTitle}>Submit Your Monthly Report</Text>
-                <View style={styles.monthPill}>
-                  <Text style={styles.monthPillText}>{currentMonthLabel}</Text>
-                </View>
-
-                <Text style={styles.sectionQ}>How was your month?</Text>
-                <Text style={styles.cardDescription}>
-                  Tell us about your studies, activities, and how you are feeling.
-                </Text>
-
-                {/* Reflection */}
+                <SectionHead
+                  icon={<IconEdit color={EMERALD} />}
+                  title="How was your month?"
+                  subtitle="Tell us about your studies, activities, and how you are feeling."
+                />
                 <View style={styles.noteWrap}>
                   <TextInput
                     style={styles.noteInput}
-                    placeholder="Share your achievements, activities, challenges, or reflections this month..."
+                    placeholder="Write a short note about your month..."
                     placeholderTextColor={SUBTLE}
-                    multiline
-                    maxLength={NOTE_MAX}
                     value={note}
-                    onChangeText={setNote}
+                    onChangeText={(t) => setNote(t.slice(0, MAX_NOTE))}
+                    multiline
+                    maxLength={MAX_NOTE}
                   />
-                  <Text style={styles.charCounter}>
-                    {note.length}/{NOTE_MAX}
-                  </Text>
+                  <Text style={styles.counter}>{note.length}/{MAX_NOTE}</Text>
                 </View>
 
-                {/* Photos */}
-                <Text style={[styles.fieldLabel, { marginTop: 20 }]}>Attach Photos (Optional)</Text>
-                {photos.length === 0 ? (
-                  <TouchableOpacity style={styles.uploadArea} activeOpacity={0.8} onPress={pickImages}>
-                    <CameraIcon />
-                    <Text style={styles.uploadText}>Tap to upload images</Text>
-                    <Text style={styles.uploadCaption}>Maximum {MAX_PHOTOS} photos</Text>
-                  </TouchableOpacity>
-                ) : (
-                  <ScrollView
-                    horizontal
-                    showsHorizontalScrollIndicator={false}
-                    contentContainerStyle={styles.previewRow}
-                  >
-                    {photos.map((p, i) => (
-                      <View key={`${p.uri}-${i}`} style={styles.previewWrap}>
-                        <Image source={{ uri: p.uri }} style={styles.previewImg} />
-                        <TouchableOpacity style={styles.previewRemove} onPress={() => removePhoto(i)} hitSlop={8}>
-                          <CloseIcon />
-                        </TouchableOpacity>
-                      </View>
-                    ))}
-                    {photos.length < MAX_PHOTOS ? (
-                      <TouchableOpacity style={styles.addMore} activeOpacity={0.8} onPress={pickImages}>
-                        <PlusIcon />
-                        <Text style={styles.addMoreText}>Add More</Text>
-                      </TouchableOpacity>
-                    ) : null}
-                  </ScrollView>
-                )}
+                <SectionHead
+                  icon={<IconCap color={EMERALD} />}
+                  title="Academic Rating"
+                  subtitle="Rate your academic performance this month."
+                />
+                <RatingSelector
+                  value={academicRating}
+                  onChange={setAcademicRating}
+                  labels={{ 1: 'Poor', 3: 'Average', 5: 'Excellent' }}
+                />
 
-                {/* Ratings */}
-                <View style={{ marginTop: 22 }}>
-                  <RatingSelector label="Academic Rating" value={academicRating} onChange={setAcademicRating} />
-                  <RatingSelector label="Wellbeing Rating" value={wellbeingRating} onChange={setWellbeingRating} />
-                </View>
+                <SectionHead
+                  icon={<IconHeart color={EMERALD} />}
+                  title="Wellbeing Rating"
+                  subtitle="Rate your overall wellbeing this month."
+                />
+                <RatingSelector
+                  value={wellbeingRating}
+                  onChange={setWellbeingRating}
+                  labels={{ 1: 'Very Low', 3: 'Average', 5: 'Very High' }}
+                />
 
-                {/* Submit */}
+                <SectionHead
+                  icon={<IconImage color={EMERALD} />}
+                  title="Add Photos (Optional)"
+                  subtitle="Add photos of your activities, achievements or study progress."
+                />
                 <TouchableOpacity
-                  style={[styles.submitButton, !canSubmit && styles.submitButtonDisabled]}
-                  onPress={handleSubmit}
-                  disabled={!canSubmit}
+                  style={styles.dropzone}
+                  onPress={pickPhotos}
                   activeOpacity={0.85}
+                  disabled={photos.length >= MAX_PHOTOS}
+                >
+                  <IconImage color={EMERALD} />
+                  <Text style={styles.dropTitle}>
+                    {photos.length >= MAX_PHOTOS ? 'Photo limit reached' : 'Tap to add photos'}
+                  </Text>
+                  <Text style={styles.dropSub}>You can select up to {MAX_PHOTOS} images</Text>
+                </TouchableOpacity>
+
+                <View style={styles.thumbRow}>
+                  {Array.from({ length: MAX_PHOTOS }).map((_, i) => {
+                    const photo = photos[i];
+                    if (photo) {
+                      return (
+                        <TouchableOpacity
+                          key={photo.uri}
+                          style={styles.thumb}
+                          onPress={() => removePhoto(photo.uri)}
+                          activeOpacity={0.8}
+                        >
+                          <Image source={{ uri: photo.uri }} style={styles.thumbImg} />
+                          <View style={styles.thumbRemove}>
+                            <Svg width={12} height={12} viewBox="0 0 24 24" fill="none">
+                              <Line x1={6} y1={6} x2={18} y2={18} stroke="#FFF" strokeWidth={2.6} strokeLinecap="round" />
+                              <Line x1={18} y1={6} x2={6} y2={18} stroke="#FFF" strokeWidth={2.6} strokeLinecap="round" />
+                            </Svg>
+                          </View>
+                        </TouchableOpacity>
+                      );
+                    }
+                    return (
+                      <TouchableOpacity
+                        key={`slot-${i}`}
+                        style={styles.thumbEmpty}
+                        onPress={pickPhotos}
+                        activeOpacity={0.7}
+                      >
+                        <IconPlus color={SUBTLE} />
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+
+                <TouchableOpacity
+                  style={[styles.submitButton, isSubmitting && styles.submitButtonDisabled]}
+                  onPress={handleSubmit}
+                  disabled={isSubmitting}
+                  activeOpacity={0.9}
                 >
                   {isSubmitting ? (
                     <ActivityIndicator color="#FFFFFF" />
                   ) : (
-                    <Text style={styles.submitButtonText}>Submit Monthly Report</Text>
+                    <>
+                      <IconSend color="#FFFFFF" />
+                      <Text style={styles.submitButtonText}>Submit Report</Text>
+                    </>
                   )}
                 </TouchableOpacity>
               </>
             )}
           </View>
 
-          {/* History */}
-          <Text style={styles.sectionLabel}>Submission History</Text>
-          {timeline.map((month, idx) => (
-            <HistoryCard
-              key={idx}
-              name={month.name}
-              state={month.state}
-              note={month.report?.note}
-              onView={() =>
-                Alert.alert(
-                  month.name,
-                  month.report?.note ? month.report.note : 'Report submitted. No written note was added.',
-                )
-              }
-              onSubmit={scrollToForm}
-            />
-          ))}
+          {/* Submission history */}
+          <View style={styles.card}>
+            <View style={styles.historyHead}>
+              <View style={styles.sectionHeadInline}>
+                <IconClock color={INK} />
+                <Text style={styles.historyTitle}>Submission History</Text>
+              </View>
+              {timeline.length > 4 ? (
+                <TouchableOpacity hitSlop={8}>
+                  <Text style={styles.viewAll}>View All ›</Text>
+                </TouchableOpacity>
+              ) : null}
+            </View>
+
+            {visibleTimeline.length === 0 ? (
+              <Text style={styles.emptyHistory}>No reports yet. Your first submission will show up here.</Text>
+            ) : (
+              visibleTimeline.map((m, idx) => (
+                <View key={m.key} style={[styles.historyRow, idx < visibleTimeline.length - 1 && styles.historyRowBorder]}>
+                  <View style={[styles.statusDot, { backgroundColor: m.submitted ? EMERALD : DANGER }]} />
+                  <View style={[styles.calChip, { backgroundColor: m.submitted ? EMERALD_SOFT : DANGER_SOFT }]}>
+                    <IconCalendar color={m.submitted ? EMERALD : DANGER} />
+                  </View>
+                  <View style={styles.flex1}>
+                    <Text style={styles.historyMonth}>{m.name}</Text>
+                    {m.submitted ? (
+                      <Text style={styles.historySubmittedOn}>
+                        {m.submittedOn ? `Submitted on ${m.submittedOn}` : 'Submitted'}
+                      </Text>
+                    ) : (
+                      <Text style={styles.historyMissing}>Missing</Text>
+                    )}
+                  </View>
+                  {m.submitted ? (
+                    <View style={styles.submittedBadge}>
+                      <Text style={styles.submittedBadgeText}>Submitted</Text>
+                    </View>
+                  ) : null}
+                  <Text style={styles.chevron}>›</Text>
+                </View>
+              ))
+            )}
+          </View>
         </ScrollView>
       )}
     </View>
@@ -438,9 +513,8 @@ export default function OrphanReportScreen() {
 }
 
 const styles = StyleSheet.create({
-  flex: { flex: 1, backgroundColor: PAGE_BG },
-
-  /* Header */
+  flex: { flex: 1, backgroundColor: CANVAS },
+  flex1: { flex: 1 },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -448,196 +522,170 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 58,
     paddingBottom: 14,
-    backgroundColor: CARD_BG,
-    shadowColor: '#000',
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 3 },
-    elevation: 3,
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: HAIRLINE,
   },
-  backButton: {
+  backBtn: { flexDirection: 'row', alignItems: 'center', minWidth: 72 },
+  backText: { color: EMERALD, fontSize: 16, fontWeight: '600', marginLeft: 2 },
+  headerTitle: { fontSize: 18, fontWeight: '700', color: INK },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 24 },
+  errorText: { color: DANGER, textAlign: 'center', marginBottom: 12 },
+  retryButton: { backgroundColor: '#EEF0F2', paddingVertical: 10, paddingHorizontal: 20, borderRadius: 10 },
+  retryText: { color: INK, fontWeight: '600' },
+  scroll: { padding: 16, paddingBottom: 40 },
+
+  card: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 22,
+    padding: 20,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: HAIRLINE,
+    shadowColor: '#0B1F13',
+    shadowOpacity: 0.05,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 2,
+  },
+
+  cardHead: { flexDirection: 'row', alignItems: 'center' },
+  cardTitle: { fontSize: 19, fontWeight: '700', color: INK, lineHeight: 24 },
+  cardMonth: { fontSize: 14, color: EMERALD, fontWeight: '600', marginTop: 2 },
+  divider: { height: 1, backgroundColor: HAIRLINE, marginVertical: 18 },
+
+  iconChip: {
     width: 42,
     height: 42,
-    borderRadius: 21,
-    backgroundColor: '#F3F4F6',
+    borderRadius: 12,
+    backgroundColor: EMERALD_SOFT,
     alignItems: 'center',
     justifyContent: 'center',
+    marginRight: 14,
   },
-  headerTitle: { fontSize: 17, fontWeight: '800', color: INK },
+  sectionHead: { flexDirection: 'row', alignItems: 'flex-start', marginTop: 4, marginBottom: 14 },
+  sectionHeadInline: { flexDirection: 'row', alignItems: 'center' },
+  sectionTitle: { fontSize: 16, fontWeight: '700', color: INK },
+  sectionSub: { fontSize: 13, color: SUBTLE, marginTop: 3, lineHeight: 18 },
 
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 24 },
-  errorText: { color: '#D70015', textAlign: 'center', marginBottom: 12 },
-  retryButton: { backgroundColor: '#F2F2F7', paddingVertical: 10, paddingHorizontal: 20, borderRadius: 12 },
-  retryText: { color: INK, fontWeight: '700' },
-
-  scrollContent: { padding: 20, paddingBottom: 48 },
-
-  /* Card */
-  card: {
-    backgroundColor: CARD_BG,
-    borderRadius: 28,
-    padding: 24,
-    marginBottom: 26,
-    shadowColor: '#000',
-    shadowOpacity: 0.07,
-    shadowRadius: 20,
-    shadowOffset: { width: 0, height: 10 },
-    elevation: 4,
-  },
-  cardTitle: { fontSize: 21, fontWeight: '800', color: INK },
-  monthPill: {
-    alignSelf: 'flex-start',
-    backgroundColor: 'rgba(15,157,88,0.1)',
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-    borderRadius: 12,
-    marginTop: 10,
-  },
-  monthPillText: { fontSize: 13, fontWeight: '700', color: EMERALD },
-  sectionQ: { fontSize: 16, fontWeight: '700', color: INK, marginTop: 22 },
-  cardDescription: { fontSize: 13.5, color: SUBTLE, marginTop: 6, lineHeight: 19 },
-
-  /* Reflection */
-  noteWrap: { marginTop: 16 },
+  noteWrap: { marginBottom: 24 },
   noteInput: {
-    backgroundColor: FIELD_BG,
-    borderRadius: 20,
-    padding: 16,
+    backgroundColor: '#FBFCFD',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: HAIRLINE,
+    paddingHorizontal: 16,
+    paddingTop: 14,
     paddingBottom: 30,
     fontSize: 15,
     color: INK,
-    minHeight: 120,
+    minHeight: 108,
     textAlignVertical: 'top',
-    lineHeight: 21,
   },
-  charCounter: {
-    position: 'absolute',
-    right: 14,
-    bottom: 10,
-    fontSize: 11.5,
-    color: SUBTLE,
-    fontWeight: '600',
-  },
+  counter: { position: 'absolute', right: 14, bottom: 10, fontSize: 12, color: SUBTLE },
 
-  /* Upload */
-  uploadArea: {
-    marginTop: 12,
-    borderRadius: 20,
+  ratingRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 24 },
+  ratingCell: { alignItems: 'center', width: 56 },
+  ratingCircle: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
     borderWidth: 1.5,
-    borderColor: '#D6DADF',
+    borderColor: '#E2E5E9',
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  ratingCircleActive: { backgroundColor: EMERALD, borderColor: EMERALD },
+  ratingNum: { fontSize: 16, fontWeight: '700', color: INK },
+  ratingNumActive: { color: '#FFFFFF' },
+  ratingLabel: { fontSize: 11, color: SUBTLE, marginTop: 8, textAlign: 'center' },
+  ratingLabelSpacer: { height: 11, marginTop: 8 },
+
+  dropzone: {
+    borderWidth: 1.5,
+    borderColor: '#BFE4CD',
     borderStyle: 'dashed',
-    backgroundColor: FIELD_BG,
-    paddingVertical: 28,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  uploadText: { fontSize: 14.5, fontWeight: '700', color: INK, marginTop: 12 },
-  uploadCaption: { fontSize: 12, color: SUBTLE, marginTop: 4 },
-  previewRow: { marginTop: 12, paddingRight: 4 },
-  previewWrap: { marginRight: 12 },
-  previewImg: { width: 84, height: 84, borderRadius: 16, backgroundColor: FIELD_BG },
-  previewRemove: {
-    position: 'absolute',
-    top: -6,
-    right: -6,
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: RED,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: '#FFFFFF',
-  },
-  addMore: {
-    width: 84,
-    height: 84,
     borderRadius: 16,
-    borderWidth: 1.5,
-    borderColor: '#D6DADF',
-    borderStyle: 'dashed',
-    backgroundColor: FIELD_BG,
+    backgroundColor: '#F4FBF6',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 22,
+    marginBottom: 12,
+  },
+  dropTitle: { color: EMERALD, fontSize: 15, fontWeight: '700', marginTop: 8 },
+  dropSub: { color: SUBTLE, fontSize: 12, marginTop: 3 },
+
+  thumbRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 24 },
+  thumb: { width: 56, height: 56, borderRadius: 12, overflow: 'hidden' },
+  thumbImg: { width: '100%', height: '100%' },
+  thumbRemove: {
+    position: 'absolute',
+    top: 2,
+    right: 2,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: 'rgba(0,0,0,0.55)',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  addMoreText: { fontSize: 11.5, fontWeight: '700', color: EMERALD, marginTop: 4 },
-
-  /* Ratings */
-  ratingBlock: { marginBottom: 20 },
-  fieldLabel: { fontSize: 15, fontWeight: '700', color: INK, marginBottom: 12 },
-  ratingRow: { flexDirection: 'row', justifyContent: 'space-between' },
-  ratingPill: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: FIELD_BG,
+  thumbEmpty: {
+    width: 56,
+    height: 56,
+    borderRadius: 12,
+    backgroundColor: '#F2F4F6',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  ratingPillSelected: { backgroundColor: EMERALD },
-  ratingPillText: { fontSize: 17, fontWeight: '700', color: INK },
-  ratingPillTextSelected: { color: '#FFFFFF' },
 
-  /* Submit */
   submitButton: {
     backgroundColor: EMERALD,
-    borderRadius: 30,
-    height: 58,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 8,
-    shadowColor: EMERALD,
-    shadowOpacity: 0.35,
-    shadowRadius: 14,
-    shadowOffset: { width: 0, height: 8 },
-    elevation: 6,
-  },
-  submitButtonDisabled: { opacity: 0.45, shadowOpacity: 0 },
-  submitButtonText: { color: '#FFFFFF', fontSize: 16, fontWeight: '800', letterSpacing: 0.3 },
-
-  /* History */
-  sectionLabel: {
-    fontSize: 13,
-    fontWeight: '800',
-    color: SUBTLE,
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-    marginBottom: 14,
-    marginLeft: 4,
-  },
-  historyCard: {
-    backgroundColor: CARD_BG,
-    borderRadius: 20,
-    padding: 18,
-    marginBottom: 14,
-    shadowColor: '#000',
-    shadowOpacity: 0.05,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 5 },
-    elevation: 2,
-  },
-  historyTop: { flexDirection: 'row', alignItems: 'center' },
-  historyMonth: { fontSize: 16, fontWeight: '800', color: INK },
-  historyNote: { fontSize: 12.5, color: SUBTLE, marginTop: 3, fontStyle: 'italic' },
-  statusBadge: {
+    borderRadius: 16,
+    paddingVertical: 16,
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  submitButtonDisabled: { opacity: 0.6 },
+  submitButtonText: { color: '#FFFFFF', fontSize: 16, fontWeight: '700' },
+
+  doneBox: { paddingVertical: 8 },
+  doneTitle: { fontSize: 16, fontWeight: '700', color: EMERALD, marginBottom: 6 },
+  doneBody: { fontSize: 14, color: SUBTLE, lineHeight: 20 },
+
+  historyHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 6,
+  },
+  historyTitle: { fontSize: 17, fontWeight: '700', color: INK, marginLeft: 8 },
+  viewAll: { color: EMERALD, fontSize: 14, fontWeight: '600' },
+  emptyHistory: { fontSize: 13, color: SUBTLE, paddingVertical: 14, lineHeight: 19 },
+
+  historyRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14 },
+  historyRowBorder: { borderBottomWidth: 1, borderBottomColor: '#F3F4F6' },
+  statusDot: { width: 8, height: 8, borderRadius: 4, marginRight: 12 },
+  calChip: {
+    width: 38,
+    height: 38,
+    borderRadius: 11,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 14,
+  },
+  historyMonth: { fontSize: 15, fontWeight: '700', color: INK },
+  historySubmittedOn: { fontSize: 12.5, color: SUBTLE, marginTop: 2 },
+  historyMissing: { fontSize: 12.5, color: DANGER, fontWeight: '600', marginTop: 2 },
+  submittedBadge: {
+    backgroundColor: EMERALD_SOFT,
     paddingHorizontal: 10,
     paddingVertical: 5,
-    borderRadius: 12,
-    marginLeft: 10,
+    borderRadius: 8,
+    marginRight: 6,
   },
-  statusDot: { width: 7, height: 7, borderRadius: 4, marginRight: 6 },
-  statusBadgeText: { fontSize: 12, fontWeight: '800' },
-  historyViewBtn: {
-    alignSelf: 'flex-start',
-    marginTop: 14,
-    backgroundColor: 'rgba(15,157,88,0.1)',
-    paddingHorizontal: 16,
-    paddingVertical: 9,
-    borderRadius: 12,
-  },
-  historyViewText: { fontSize: 13, fontWeight: '800', color: EMERALD },
-  historySubmitBtn: { alignSelf: 'flex-start', marginTop: 12, paddingVertical: 4 },
-  historySubmitText: { fontSize: 13, fontWeight: '800', color: RED },
+  submittedBadgeText: { color: EMERALD, fontSize: 11.5, fontWeight: '700' },
+  chevron: { fontSize: 22, color: '#C4C9CF', fontWeight: '400' },
 });

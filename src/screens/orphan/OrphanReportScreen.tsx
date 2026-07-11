@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import Svg, { Path, Circle, Rect, Line, Polyline } from 'react-native-svg';
-import * as ImagePicker from 'expo-image-picker';
+import { launchImageLibrary } from 'react-native-image-picker';
 import { useAuth } from '../../context/AuthContext';
 import {
   fetchReportStatus,
@@ -208,23 +208,19 @@ export default function OrphanReportScreen() {
 
   const pickPhotos = async () => {
     if (photos.length >= MAX_PHOTOS) return;
-    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!perm.granted) {
-      Alert.alert('Permission needed', 'Allow photo access to attach images to your report.');
-      return;
-    }
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsMultipleSelection: true,
+    const result = await launchImageLibrary({
+      mediaType: 'photo',
       selectionLimit: MAX_PHOTOS - photos.length,
       quality: 0.7,
     });
-    if (result.canceled) return;
-    const picked: PickedPhoto[] = result.assets.map((a) => ({
-      uri: a.uri,
-      fileName: a.fileName,
-      type: a.mimeType,
-    }));
+    if (result.didCancel || result.errorCode || !result.assets) return;
+    const picked: PickedPhoto[] = result.assets
+      .filter((a) => !!a.uri)
+      .map((a) => ({
+        uri: a.uri as string,
+        fileName: a.fileName ?? null,
+        type: a.type ?? null,
+      }));
     setPhotos((prev) => [...prev, ...picked].slice(0, MAX_PHOTOS));
   };
 
@@ -258,8 +254,7 @@ export default function OrphanReportScreen() {
 
   // Normalize the status into a timeline regardless of whether the backend
   // returns a rolling `timeline` (preferred) or only a `history` array of
-  // submitted reports. This is what previously broke the screen: it read
-  // `status.timeline` while the service typed the response as `history`.
+  // submitted reports.
   const timeline: {
     key: string;
     name: string;

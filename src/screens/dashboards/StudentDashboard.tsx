@@ -1,15 +1,16 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
   Alert,
-  ScrollView,
+  Animated,
   useWindowDimensions,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import Svg, { Defs, LinearGradient, Stop, Path, Circle, Rect, Line } from 'react-native-svg';
+import LinearGradient from 'react-native-linear-gradient';
+import Svg, { Path, Circle, Rect, Line } from 'react-native-svg';
 import { useAuth } from '../../context/AuthContext';
 import { EMERALD, EMERALD_SOFT, INK, SUBTLE } from './DashboardShell';
 import { fetchReportStatus, ReportStatus } from '../../services/orphanService';
@@ -17,18 +18,20 @@ import { Skeleton, SkeletonCircle } from '../../components/Skeleton';
 
 /* ------------------------------------------------------------------ *
  * Palette
- * Dark greens drive the header + profile glass card; EMERALD is the
- * brand accent reused everywhere. Glass values are semi-transparent so
- * the dark header shows through (RN has no native backdrop blur without
- * an extra lib, so translucency + a hairline border simulates glass).
  * ------------------------------------------------------------------ */
 const DARK_TOP = '#0F4A34';
 const DARK_BOTTOM = '#062418';
 const PALE_GREEN = '#9FE3BC';
-const GLASS_BG = 'rgba(16,54,39,0.55)';
+const GLASS_BG = 'rgba(12,44,32,0.62)';
 const GLASS_BORDER = 'rgba(255,255,255,0.14)';
 const GLASS_DIVIDER = 'rgba(255,255,255,0.10)';
 const WHITE = '#FFFFFF';
+
+// Parallax: the dark header background scrolls at 45% of the content speed
+// and fades out as it goes, so the cards glide over it and the header melts
+// into the white page (Apple-style depth).
+const HEADER_BG_H = 500;
+const PARALLAX = 0.45;
 
 const MONTH_NAMES = [
   'January', 'February', 'March', 'April', 'May', 'June',
@@ -152,7 +155,7 @@ function ClockIcon({ color = EMERALD, size = 20 }: { color?: string; size?: numb
   );
 }
 
-/* --------------------------- Small building blocks --------------------------- */
+/* --------------------------- Building blocks --------------------------- */
 function GlassRow({
   icon,
   label,
@@ -194,23 +197,32 @@ function QuickActionCard({
   badge?: number;
   onPress: () => void;
 }) {
+  const scale = useRef(new Animated.Value(1)).current;
   return (
-    <TouchableOpacity style={styles.quickCard} activeOpacity={0.9} onPress={onPress}>
-      <View>
-        <View style={styles.quickIconWrap}>{icon}</View>
-        {!!badge && badge > 0 ? (
-          <View style={styles.quickBadge}>
-            <Text style={styles.quickBadgeText}>{badge}</Text>
-          </View>
-        ) : null}
-      </View>
-      <Text style={styles.quickTitle}>{title}</Text>
-      <Text style={styles.quickDescription}>{description}</Text>
-      <View style={styles.quickArrowButton}>
-        <ArrowRightIcon size={16} />
-      </View>
-      <View style={styles.quickAccentBar} />
-    </TouchableOpacity>
+    <Animated.View style={[styles.quickCardWrap, { transform: [{ scale }] }]}>
+      <TouchableOpacity
+        style={styles.quickCard}
+        activeOpacity={0.9}
+        onPress={onPress}
+        onPressIn={() => Animated.spring(scale, { toValue: 0.96, useNativeDriver: true }).start()}
+        onPressOut={() => Animated.spring(scale, { toValue: 1, friction: 5, useNativeDriver: true }).start()}
+      >
+        <View>
+          <View style={styles.quickIconWrap}>{icon}</View>
+          {!!badge && badge > 0 ? (
+            <View style={styles.quickBadge}>
+              <Text style={styles.quickBadgeText}>{badge}</Text>
+            </View>
+          ) : null}
+        </View>
+        <Text style={styles.quickTitle}>{title}</Text>
+        <Text style={styles.quickDescription}>{description}</Text>
+        <View style={styles.quickArrowButton}>
+          <ArrowRightIcon size={16} />
+        </View>
+        <View style={styles.quickAccentBar} />
+      </TouchableOpacity>
+    </Animated.View>
   );
 }
 
@@ -241,6 +253,7 @@ export default function StudentDashboard() {
   const { user, token } = useAuth();
   const navigation = useNavigation();
   const { width } = useWindowDimensions();
+  const scrollY = useRef(new Animated.Value(0)).current;
 
   const isOrphan = !!user?.is_orphan;
   const initial = user?.name?.trim()?.[0]?.toUpperCase() ?? '?';
@@ -259,9 +272,7 @@ export default function StudentDashboard() {
       .then((data) => {
         if (!cancelled) setStatus(data);
       })
-      .catch(() => {
-        // Silent - the overview stats just fall back to placeholders below.
-      })
+      .catch(() => {})
       .finally(() => {
         if (!cancelled) setIsLoadingStatus(false);
       });
@@ -279,10 +290,9 @@ export default function StudentDashboard() {
   }, [isOrphan, navigation]);
 
   const handlePlaceholderPress = useCallback((title: string) => {
-    Alert.alert('Coming soon', `${title} isn't wired up yet - tell me which to build out next.`);
+    Alert.alert('Coming soon', `${title} isn't wired up yet.`);
   }, []);
 
-  // --- Overview stats: wired to real submission history for orphan students.
   const history = status?.history ?? [];
   const reportsSubmitted = isOrphan ? String(history.length) : '0';
   const ratings = history.flatMap((r) =>
@@ -296,143 +306,123 @@ export default function StudentDashboard() {
   const now = new Date();
   const monthLabel = `${MONTH_NAMES[now.getMonth()].slice(0, 3)} ${now.getFullYear()}`;
 
-  const HEADER_H = 476;
+  // Parallax + fade for the dark background layer.
+  const bgTranslate = scrollY.interpolate({
+    inputRange: [0, HEADER_BG_H],
+    outputRange: [0, -HEADER_BG_H * PARALLAX],
+    extrapolate: 'clamp',
+  });
+  const bgOpacity = scrollY.interpolate({
+    inputRange: [0, HEADER_BG_H * 0.62, HEADER_BG_H],
+    outputRange: [1, 1, 0],
+    extrapolate: 'clamp',
+  });
 
   return (
     <View style={styles.flex}>
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
+      {/* -------- Parallax dark background layer -------- */}
+      <Animated.View
+        style={[
+          styles.bgLayer,
+          { height: HEADER_BG_H, opacity: bgOpacity, transform: [{ translateY: bgTranslate }] },
+        ]}
+        pointerEvents="none"
       >
-        {/* ===================== Dark green header ===================== */}
-        <View style={{ minHeight: HEADER_H }}>
-          {/* Curved gradient background + subtle abstract waves */}
-          <Svg
-            style={StyleSheet.absoluteFill}
-            width={width}
-            height={HEADER_H}
-            viewBox={`0 0 ${width} ${HEADER_H}`}
-          >
-            <Defs>
-              <LinearGradient id="headerGrad" x1="0" y1="0" x2="0.4" y2="1">
-                <Stop offset="0" stopColor={DARK_TOP} />
-                <Stop offset="1" stopColor={DARK_BOTTOM} />
-              </LinearGradient>
-            </Defs>
-            {/* Rounded-bottom rectangle */}
-            <Path
-              d={`M0 0 L${width} 0 L${width} ${HEADER_H - 44} Q${width} ${HEADER_H} ${width - 44} ${HEADER_H} L44 ${HEADER_H} Q0 ${HEADER_H} 0 ${HEADER_H - 44} Z`}
-              fill="url(#headerGrad)"
-            />
-            {/* Soft abstract wave circles */}
+        <LinearGradient
+          colors={[DARK_TOP, DARK_BOTTOM]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 0.4, y: 1 }}
+          style={styles.bgGradient}
+        >
+          <Svg style={StyleSheet.absoluteFill} width={width} height={HEADER_BG_H}>
             <Circle cx={width - 40} cy={70} r={130} fill="#FFFFFF" opacity={0.03} />
             <Circle cx={width - 90} cy={30} r={70} fill="#FFFFFF" opacity={0.04} />
-            <Path
-              d={`M0 120 Q${width * 0.35} 60 ${width} 150`}
-              stroke="#FFFFFF"
-              strokeWidth={1.2}
-              opacity={0.06}
-              fill="none"
-            />
-            <Path
-              d={`M0 175 Q${width * 0.45} 110 ${width} 205`}
-              stroke="#FFFFFF"
-              strokeWidth={1.2}
-              opacity={0.05}
-              fill="none"
-            />
+            <Path d={`M0 130 Q${width * 0.35} 70 ${width} 160`} stroke="#FFFFFF" strokeWidth={1.2} opacity={0.06} fill="none" />
+            <Path d={`M0 185 Q${width * 0.45} 120 ${width} 215`} stroke="#FFFFFF" strokeWidth={1.2} opacity={0.05} fill="none" />
           </Svg>
+        </LinearGradient>
+      </Animated.View>
 
-          {/* Greeting + avatar */}
-          <View style={styles.greetingRow}>
-            <View style={styles.greetingTextWrap}>
-              <Text style={styles.greetingSmall}>Assalamu Alaykum,</Text>
-              <Text style={styles.greetingName} numberOfLines={2}>
-                {user?.name}
-              </Text>
-            </View>
-
-            <TouchableOpacity
-              onPress={() => (navigation as any).navigate('Menu')}
-              hitSlop={10}
-              activeOpacity={0.85}
-            >
-              <View style={styles.avatarRing}>
-                <View style={styles.avatarInner}>
-                  <Text style={styles.avatarInitial}>{initial}</Text>
-                </View>
-                <View style={styles.avatarDot} />
+      {/* -------- Scrolling content -------- */}
+      <Animated.ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        scrollEventThrottle={16}
+        onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], { useNativeDriver: true })}
+      >
+        {/* Greeting */}
+        <View style={styles.greetingRow}>
+          <View style={styles.greetingTextWrap}>
+            <Text style={styles.greetingSmall}>Assalamu Alaykum,</Text>
+            <Text style={styles.greetingName} numberOfLines={2}>
+              {user?.name}
+            </Text>
+          </View>
+          <TouchableOpacity onPress={() => (navigation as any).navigate('Menu')} hitSlop={10} activeOpacity={0.85}>
+            <View style={styles.avatarRing}>
+              <View style={styles.avatarInner}>
+                <Text style={styles.avatarInitial}>{initial}</Text>
               </View>
+              <View style={styles.avatarDot} />
+            </View>
+          </TouchableOpacity>
+        </View>
+
+        {/* Profile glass card */}
+        <View style={styles.glassCard}>
+          <View style={styles.glassHeaderRow}>
+            <View style={styles.glassHeaderLeft}>
+              <View style={styles.glassIconCircle}>
+                <PersonIcon />
+              </View>
+              <View>
+                <Text style={styles.glassTitle}>Profile</Text>
+                <Text style={styles.glassSubtitle}>Your personal information</Text>
+              </View>
+            </View>
+            <TouchableOpacity
+              style={styles.editButton}
+              hitSlop={8}
+              activeOpacity={0.8}
+              onPress={() => handlePlaceholderPress('Editing your profile')}
+            >
+              <PencilIcon />
             </TouchableOpacity>
           </View>
 
-          {/* Profile glass card */}
-          <View style={styles.glassCard}>
-            <View style={styles.glassHeaderRow}>
-              <View style={styles.glassHeaderLeft}>
-                <View style={styles.glassIconCircle}>
-                  <PersonIcon />
-                </View>
-                <View>
-                  <Text style={styles.glassTitle}>Profile</Text>
-                  <Text style={styles.glassSubtitle}>Your personal information</Text>
-                </View>
-              </View>
-              <TouchableOpacity
-                style={styles.editButton}
-                hitSlop={8}
-                activeOpacity={0.8}
-                onPress={() => handlePlaceholderPress('Editing your profile')}
-              >
-                <PencilIcon />
-              </TouchableOpacity>
-            </View>
+          <View style={styles.glassDivider} />
 
-            <View style={styles.glassDivider} />
-
-            <GlassRow icon={<PersonIcon size={19} />} label="Name" value={user?.name} divider />
-            <GlassRow icon={<MailIcon size={19} />} label="Email" value={user?.email} divider={!!user?.code} />
-            {user?.code ? (
-              <GlassRow icon={<IdCardIcon size={19} />} label="Student Code" value={user.code} />
-            ) : null}
-          </View>
+          <GlassRow icon={<PersonIcon size={19} />} label="Name" value={user?.name} divider />
+          <GlassRow icon={<MailIcon size={19} />} label="Email" value={user?.email} divider={!!user?.code} />
+          {user?.code ? <GlassRow icon={<IdCardIcon size={19} />} label="Student Code" value={user.code} /> : null}
         </View>
 
-        {/* ===================== Monthly Report ===================== */}
-        <TouchableOpacity
-          style={styles.reportCard}
-          activeOpacity={0.9}
-          onPress={handleMonthlyReportPress}
-        >
-          <Svg style={StyleSheet.absoluteFill} width="100%" height="100%">
-            <Defs>
-              <LinearGradient id="reportGrad" x1="0" y1="0" x2="1" y2="1">
-                <Stop offset="0" stopColor="#17B368" />
-                <Stop offset="1" stopColor="#0B7A46" />
-              </LinearGradient>
-            </Defs>
-            <Rect x="0" y="0" width="100%" height="100%" rx="24" fill="url(#reportGrad)" />
-            <Circle cx="88%" cy="20%" r="70" fill="#FFFFFF" opacity={0.06} />
-            <Path d="M0 90 Q120 40 320 100" stroke="#FFFFFF" strokeWidth={1.2} opacity={0.08} fill="none" />
-          </Svg>
-
-          <View style={styles.reportIconCircle}>
-            <DocCheckIcon />
-          </View>
-          <View style={styles.reportTextWrap}>
-            <Text style={styles.reportTitle}>Monthly Report</Text>
-            <Text style={styles.reportSubtitle}>
-              {isOrphan && status?.submitted_this_month
-                ? 'Submitted for this month, view your history any time'
-                : 'Submit how your month went, and see your submission history'}
-            </Text>
-          </View>
-          <View style={styles.reportArrowButton}>
-            <ArrowRightIcon size={20} />
-          </View>
+        {/* Monthly Report */}
+        <TouchableOpacity activeOpacity={0.9} onPress={handleMonthlyReportPress} style={styles.reportShadow}>
+          <LinearGradient
+            colors={['#17B368', '#0B7A46']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.reportCard}
+          >
+            <View style={styles.reportIconCircle}>
+              <DocCheckIcon />
+            </View>
+            <View style={styles.reportTextWrap}>
+              <Text style={styles.reportTitle}>Monthly Report</Text>
+              <Text style={styles.reportSubtitle}>
+                {isOrphan && status?.submitted_this_month
+                  ? 'Submitted for this month, view your history any time'
+                  : 'Submit how your month went, and see your submission history'}
+              </Text>
+            </View>
+            <View style={styles.reportArrowButton}>
+              <ArrowRightIcon size={20} />
+            </View>
+          </LinearGradient>
         </TouchableOpacity>
 
-        {/* ===================== Quick Actions ===================== */}
+        {/* Quick Actions */}
         <View style={styles.sectionHeaderRow}>
           <Text style={styles.sectionTitle}>Quick Actions</Text>
           <TouchableOpacity
@@ -451,9 +441,7 @@ export default function StudentDashboard() {
             title="My Reports"
             description="View your report submissions"
             onPress={
-              isOrphan
-                ? () => (navigation as any).navigate('OrphanReport')
-                : () => handlePlaceholderPress('My Reports')
+              isOrphan ? () => (navigation as any).navigate('OrphanReport') : () => handlePlaceholderPress('My Reports')
             }
           />
           <QuickActionCard
@@ -471,7 +459,7 @@ export default function StudentDashboard() {
           />
         </View>
 
-        {/* ===================== This Month Overview ===================== */}
+        {/* This Month Overview */}
         <View style={styles.overviewCard}>
           <View style={styles.overviewHeaderRow}>
             <Text style={styles.overviewTitle}>This Month Overview</Text>
@@ -489,7 +477,7 @@ export default function StudentDashboard() {
             <View style={styles.statsRow}>
               {[0, 1, 2, 3].map((i) => (
                 <View key={i} style={styles.statItem}>
-                  <SkeletonCircle size={40} />
+                  <SkeletonCircle size={42} />
                   <Skeleton width={34} height={20} style={styles.mb6} />
                   <Skeleton width={54} height={10} />
                 </View>
@@ -521,7 +509,7 @@ export default function StudentDashboard() {
             </Text>
           </View>
         ) : null}
-      </ScrollView>
+      </Animated.ScrollView>
     </View>
   );
 }
@@ -531,6 +519,10 @@ const H_PAD = 20;
 const styles = StyleSheet.create({
   flex: { flex: 1, backgroundColor: '#FFFFFF' },
   scrollContent: { paddingBottom: 130 },
+
+  /* Parallax background */
+  bgLayer: { position: 'absolute', top: 0, left: 0, right: 0, zIndex: 0 },
+  bgGradient: { flex: 1, borderBottomLeftRadius: 44, borderBottomRightRadius: 44, overflow: 'hidden' },
 
   /* Greeting */
   greetingRow: {
@@ -582,18 +574,8 @@ const styles = StyleSheet.create({
     borderColor: GLASS_BORDER,
     borderRadius: 26,
     padding: 22,
-    shadowColor: '#000',
-    shadowOpacity: 0.25,
-    shadowRadius: 20,
-    shadowOffset: { width: 0, height: 12 },
-    elevation: 8,
   },
-  glassHeaderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
+  glassHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
   glassHeaderLeft: { flexDirection: 'row', alignItems: 'center', flex: 1 },
   glassIconCircle: {
     width: 46,
@@ -617,38 +599,30 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   glassDivider: { height: 1, backgroundColor: GLASS_DIVIDER, marginVertical: 6 },
-  glassRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 14,
-  },
+  glassRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 14 },
   glassRowLeft: { flexDirection: 'row', alignItems: 'center' },
   glassRowLabel: { fontSize: 15, color: 'rgba(255,255,255,0.62)', marginLeft: 12 },
-  glassRowValue: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#FFFFFF',
-    flexShrink: 1,
-    textAlign: 'right',
-    marginLeft: 12,
-  },
+  glassRowValue: { fontSize: 15, fontWeight: '700', color: '#FFFFFF', flexShrink: 1, textAlign: 'right', marginLeft: 12 },
 
   /* Monthly Report */
-  reportCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  reportShadow: {
     marginHorizontal: H_PAD,
     marginTop: 28,
     borderRadius: 24,
-    padding: 20,
-    minHeight: 118,
-    overflow: 'hidden',
+    backgroundColor: '#0B7A46',
     shadowColor: EMERALD,
     shadowOpacity: 0.3,
     shadowRadius: 16,
     shadowOffset: { width: 0, height: 10 },
     elevation: 6,
+  },
+  reportCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 24,
+    padding: 20,
+    minHeight: 118,
+    overflow: 'hidden',
   },
   reportIconCircle: {
     width: 58,
@@ -669,11 +643,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 4,
   },
 
   /* Section header */
@@ -690,17 +659,13 @@ const styles = StyleSheet.create({
   viewAllText: { fontSize: 14, fontWeight: '700', color: EMERALD, marginRight: 3 },
 
   /* Quick actions */
-  quickRow: {
-    flexDirection: 'row',
-    paddingHorizontal: H_PAD - 5,
-  },
+  quickRow: { flexDirection: 'row', paddingHorizontal: H_PAD - 5 },
+  quickCardWrap: { flex: 1, marginHorizontal: 5 },
   quickCard: {
-    flex: 1,
     minHeight: 188,
     backgroundColor: '#FFFFFF',
     borderRadius: 20,
     padding: 15,
-    marginHorizontal: 5,
     overflow: 'hidden',
     shadowColor: '#000',
     shadowOpacity: 0.07,
@@ -743,14 +708,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  quickAccentBar: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    height: 4,
-    backgroundColor: EMERALD,
-  },
+  quickAccentBar: { position: 'absolute', left: 0, right: 0, bottom: 0, height: 4, backgroundColor: EMERALD },
 
   /* Overview */
   overviewCard: {
@@ -765,12 +723,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 6 },
     elevation: 3,
   },
-  overviewHeaderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 22,
-  },
+  overviewHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 22 },
   overviewTitle: { fontSize: 17, fontWeight: '800', color: INK },
   monthPill: { flexDirection: 'row', alignItems: 'center' },
   monthPillText: { fontSize: 13.5, color: SUBTLE, fontWeight: '600', marginRight: 5 },
@@ -793,12 +746,6 @@ const styles = StyleSheet.create({
   statLabel: { fontSize: 10.5, color: SUBTLE, textAlign: 'center', marginTop: 5, lineHeight: 14 },
 
   /* Note */
-  noteBox: {
-    marginHorizontal: H_PAD,
-    marginTop: 20,
-    backgroundColor: EMERALD_SOFT,
-    borderRadius: 16,
-    padding: 16,
-  },
+  noteBox: { marginHorizontal: H_PAD, marginTop: 20, backgroundColor: EMERALD_SOFT, borderRadius: 16, padding: 16 },
   noteText: { fontSize: 13, color: INK, lineHeight: 19 },
 });

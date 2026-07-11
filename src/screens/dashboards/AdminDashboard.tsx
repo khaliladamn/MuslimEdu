@@ -4,12 +4,12 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  ScrollView,
   Animated,
   useWindowDimensions,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import Svg, { Defs, LinearGradient, Stop, Path, Circle, Rect, Line } from 'react-native-svg';
+import LinearGradient from 'react-native-linear-gradient';
+import Svg, { Path, Circle, Rect } from 'react-native-svg';
 import { useAuth } from '../../context/AuthContext';
 import { EMERALD, EMERALD_SOFT, INK, SUBTLE } from './DashboardShell';
 
@@ -19,9 +19,10 @@ import { EMERALD, EMERALD_SOFT, INK, SUBTLE } from './DashboardShell';
 const DARK_TOP = '#0F4A34';
 const DARK_BOTTOM = '#062418';
 const PALE_GREEN = '#9FE3BC';
-const REPORTS_BG_TOP = '#123F2E';
-const REPORTS_BG_BOTTOM = '#08251A';
 const WHITE = '#FFFFFF';
+
+const HEADER_BG_H = 250;
+const PARALLAX = 0.45;
 
 /* ------------------------------- Icons ------------------------------ */
 function ChildrenIcon({ color = WHITE, size = 26 }: { color?: string; size?: number }) {
@@ -89,13 +90,6 @@ function InfoIcon({ color = WHITE, size = 20 }: { color?: string; size?: number 
     </Svg>
   );
 }
-function ArrowUpIcon({ color = EMERALD, size = 13 }: { color?: string; size?: number }) {
-  return (
-    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-      <Path d="M12 19V6M6 11l6-6 6 6" stroke={color} strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round" />
-    </Svg>
-  );
-}
 
 /* --------------------------- Manage card --------------------------- */
 function ManageCard({
@@ -117,68 +111,47 @@ function ManageCard({
 
   const iconColor = solid ? WHITE : EMERALD;
   const titleColor = solid ? WHITE : INK;
-  const descColor = solid ? 'rgba(255,255,255,0.8)' : SUBTLE;
+  const descColor = solid ? 'rgba(255,255,255,0.85)' : SUBTLE;
   const arrowColor = solid ? WHITE : EMERALD;
+
+  const Inner = (
+    <>
+      <View style={[styles.manageIconCircle, solid && styles.manageIconCircleSolid]}>{icon(iconColor)}</View>
+      <Text style={[styles.manageTitle, { color: titleColor }]}>{title}</Text>
+      <Text style={[styles.manageDesc, { color: descColor }]}>{description}</Text>
+      <View style={[styles.manageArrow, solid && styles.manageArrowSolid]}>
+        <ArrowRightIcon size={17} color={arrowColor} />
+      </View>
+    </>
+  );
 
   return (
     <Animated.View style={[styles.manageCardWrap, { transform: [{ scale }] }]}>
-      <TouchableOpacity
-        style={styles.manageCardTouch}
-        activeOpacity={0.9}
-        onPressIn={pressIn}
-        onPressOut={pressOut}
-        onPress={onPress}
-      >
+      <TouchableOpacity activeOpacity={0.9} onPressIn={pressIn} onPressOut={pressOut} onPress={onPress}>
         {solid ? (
-          <Svg style={StyleSheet.absoluteFill} width="100%" height="100%">
-            <Defs>
-              <LinearGradient id="mcGrad" x1="0" y1="0" x2="1" y2="1">
-                <Stop offset="0" stopColor="#17B368" />
-                <Stop offset="1" stopColor="#0B7A46" />
-              </LinearGradient>
-            </Defs>
-            <Rect x="0" y="0" width="100%" height="100%" rx="22" fill="url(#mcGrad)" />
-          </Svg>
+          <LinearGradient
+            colors={['#17B368', '#0B7A46']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.manageCardInner}
+          >
+            {Inner}
+          </LinearGradient>
         ) : (
-          <View style={styles.manageCardSoftBg} />
+          <View style={[styles.manageCardInner, styles.manageCardSoft]}>{Inner}</View>
         )}
-
-        <View style={[styles.manageIconCircle, solid && styles.manageIconCircleSolid]}>
-          {icon(iconColor)}
-        </View>
-        <Text style={[styles.manageTitle, { color: titleColor }]}>{title}</Text>
-        <Text style={[styles.manageDesc, { color: descColor }]}>{description}</Text>
-        <View style={[styles.manageArrow, solid && styles.manageArrowSolid]}>
-          <ArrowRightIcon size={17} color={arrowColor} />
-        </View>
       </TouchableOpacity>
     </Animated.View>
   );
 }
 
 /* ---------------------------- Stat card ---------------------------- */
-function StatCard({
-  icon,
-  value,
-  label,
-  growth,
-}: {
-  icon: React.ReactElement;
-  value: string;
-  label: string;
-  growth?: string;
-}) {
+function StatCard({ icon, value, label }: { icon: React.ReactElement; value: string; label: string }) {
   return (
     <View style={styles.statCard}>
       <View style={styles.statIconCircle}>{icon}</View>
       <Text style={styles.statValue}>{value}</Text>
       <Text style={styles.statLabel}>{label}</Text>
-      {growth ? (
-        <View style={styles.statGrowthRow}>
-          <ArrowUpIcon />
-          <Text style={styles.statGrowthText}>{growth}</Text>
-        </View>
-      ) : null}
     </View>
   );
 }
@@ -187,6 +160,7 @@ export default function AdminDashboard() {
   const navigation = useNavigation();
   const { user } = useAuth();
   const { width } = useWindowDimensions();
+  const scrollY = useRef(new Animated.Value(0)).current;
 
   const isOrphan = !!user?.is_orphan;
   const studentsLabel = isOrphan ? 'Children' : 'Students';
@@ -195,83 +169,82 @@ export default function AdminDashboard() {
   const goStudents = () => (navigation as any).navigate('StudentsList');
   const notWired = () => {};
 
-  const HEADER_H = 250;
+  const bgTranslate = scrollY.interpolate({
+    inputRange: [0, HEADER_BG_H],
+    outputRange: [0, -HEADER_BG_H * PARALLAX],
+    extrapolate: 'clamp',
+  });
+  const bgOpacity = scrollY.interpolate({
+    inputRange: [0, HEADER_BG_H * 0.6, HEADER_BG_H],
+    outputRange: [1, 1, 0],
+    extrapolate: 'clamp',
+  });
 
   return (
     <View style={styles.flex}>
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        {/* ===================== Dark green header ===================== */}
-        <View style={{ minHeight: HEADER_H }}>
-          <Svg style={StyleSheet.absoluteFill} width={width} height={HEADER_H} viewBox={`0 0 ${width} ${HEADER_H}`}>
-            <Defs>
-              <LinearGradient id="hdrGrad" x1="0" y1="0" x2="0.4" y2="1">
-                <Stop offset="0" stopColor={DARK_TOP} />
-                <Stop offset="1" stopColor={DARK_BOTTOM} />
-              </LinearGradient>
-            </Defs>
-            <Path
-              d={`M0 0 L${width} 0 L${width} ${HEADER_H - 40} Q${width} ${HEADER_H} ${width - 40} ${HEADER_H} L40 ${HEADER_H} Q0 ${HEADER_H} 0 ${HEADER_H - 40} Z`}
-              fill="url(#hdrGrad)"
-            />
+      {/* -------- Parallax dark background layer -------- */}
+      <Animated.View
+        style={[styles.bgLayer, { height: HEADER_BG_H, opacity: bgOpacity, transform: [{ translateY: bgTranslate }] }]}
+        pointerEvents="none"
+      >
+        <LinearGradient colors={[DARK_TOP, DARK_BOTTOM]} start={{ x: 0, y: 0 }} end={{ x: 0.4, y: 1 }} style={styles.bgGradient}>
+          <Svg style={StyleSheet.absoluteFill} width={width} height={HEADER_BG_H}>
             <Circle cx={width - 40} cy={60} r={120} fill="#FFFFFF" opacity={0.03} />
             <Circle cx={width - 90} cy={20} r={64} fill="#FFFFFF" opacity={0.04} />
             <Path d={`M0 110 Q${width * 0.4} 50 ${width} 140`} stroke="#FFFFFF" strokeWidth={1.2} opacity={0.06} fill="none" />
-            <Path d={`M0 160 Q${width * 0.5} 100 ${width} 190`} stroke="#FFFFFF" strokeWidth={1.2} opacity={0.05} fill="none" />
           </Svg>
+        </LinearGradient>
+      </Animated.View>
 
-          <View style={styles.greetingRow}>
-            <View style={styles.greetingTextWrap}>
-              <Text style={styles.greetingSmall}>Assalamu Alaykum,</Text>
-              <Text style={styles.greetingName} numberOfLines={2}>
-                {user?.name}
-              </Text>
-            </View>
-            <TouchableOpacity onPress={() => (navigation as any).navigate('Menu')} hitSlop={10} activeOpacity={0.85}>
-              <View style={styles.avatarRing}>
-                <View style={styles.avatarInner}>
-                  <Text style={styles.avatarInitial}>{initial}</Text>
-                </View>
-                <View style={styles.avatarDot} />
-              </View>
-            </TouchableOpacity>
+      {/* -------- Scrolling content -------- */}
+      <Animated.ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        scrollEventThrottle={16}
+        onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], { useNativeDriver: true })}
+      >
+        {/* Greeting */}
+        <View style={styles.greetingRow}>
+          <View style={styles.greetingTextWrap}>
+            <Text style={styles.greetingSmall}>Assalamu Alaykum,</Text>
+            <Text style={styles.greetingName} numberOfLines={2}>
+              {user?.name}
+            </Text>
           </View>
+          <TouchableOpacity onPress={() => (navigation as any).navigate('Menu')} hitSlop={10} activeOpacity={0.85}>
+            <View style={styles.avatarRing}>
+              <View style={styles.avatarInner}>
+                <Text style={styles.avatarInitial}>{initial}</Text>
+              </View>
+              <View style={styles.avatarDot} />
+            </View>
+          </TouchableOpacity>
         </View>
 
-        {/* ===================== Monthly Reports (orphan admins only) ===================== */}
+        {/* Monthly Reports (orphan admins only) */}
         {isOrphan ? (
           <TouchableOpacity
-            style={styles.reportsCard}
             activeOpacity={0.9}
             onPress={() => (navigation as any).navigate('AdminOrphanOverview')}
+            style={styles.reportsShadow}
           >
-            <Svg style={StyleSheet.absoluteFill} width="100%" height="100%">
-              <Defs>
-                <LinearGradient id="repGrad" x1="0" y1="0" x2="1" y2="1">
-                  <Stop offset="0" stopColor={REPORTS_BG_TOP} />
-                  <Stop offset="1" stopColor={REPORTS_BG_BOTTOM} />
-                </LinearGradient>
-              </Defs>
-              <Rect x="0" y="0" width="100%" height="100%" rx="24" fill="url(#repGrad)" />
-              <Circle cx="90%" cy="18%" r="66" fill="#FFFFFF" opacity={0.04} />
-            </Svg>
-
-            <View style={styles.reportsIconCircle}>
-              <DocIcon />
-            </View>
-            <View style={styles.reportsTextWrap}>
-              <Text style={styles.reportsLabel}>MONTHLY REPORTS</Text>
-              <Text style={styles.reportsTitle}>Track this month's submissions</Text>
-              <Text style={styles.reportsSubtitle}>
-                See who's submitted, review reports, or add one on a child's behalf
-              </Text>
-            </View>
-            <View style={styles.reportsArrow}>
-              <ArrowRightIcon size={19} />
-            </View>
+            <LinearGradient colors={['#123F2E', '#08251A']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.reportsCard}>
+              <View style={styles.reportsIconCircle}>
+                <DocIcon />
+              </View>
+              <View style={styles.reportsTextWrap}>
+                <Text style={styles.reportsLabel}>MONTHLY REPORTS</Text>
+                <Text style={styles.reportsTitle}>Track this month's submissions</Text>
+                <Text style={styles.reportsSubtitle}>See who's submitted, review reports, or add one on a child's behalf</Text>
+              </View>
+              <View style={styles.reportsArrow}>
+                <ArrowRightIcon size={19} />
+              </View>
+            </LinearGradient>
           </TouchableOpacity>
         ) : null}
 
-        {/* ===================== Manage ===================== */}
+        {/* Manage */}
         <Text style={styles.sectionLabel}>Manage</Text>
         <View style={styles.grid}>
           <ManageCard
@@ -281,34 +254,13 @@ export default function AdminDashboard() {
             solid
             onPress={goStudents}
           />
-          <ManageCard
-            icon={(c) => <TeacherIcon color={c} />}
-            title="Teachers"
-            description="Manage teachers and permissions"
-            onPress={notWired}
-          />
-          <ManageCard
-            icon={(c) => <ClassesIcon color={c} />}
-            title="Classes"
-            description="Manage classes and sections"
-            onPress={notWired}
-          />
-          <ManageCard
-            icon={(c) => <FeeIcon color={c} />}
-            title="Fee Reports"
-            description="View and manage fee collections"
-            solid
-            onPress={notWired}
-          />
-          <ManageCard
-            icon={(c) => <AttendanceIcon color={c} />}
-            title="Attendance"
-            description="Track attendance records"
-            onPress={notWired}
-          />
+          <ManageCard icon={(c) => <TeacherIcon color={c} />} title="Teachers" description="Manage teachers and permissions" onPress={notWired} />
+          <ManageCard icon={(c) => <ClassesIcon color={c} />} title="Classes" description="Manage classes and sections" onPress={notWired} />
+          <ManageCard icon={(c) => <FeeIcon color={c} />} title="Fee Reports" description="View and manage fee collections" solid onPress={notWired} />
+          <ManageCard icon={(c) => <AttendanceIcon color={c} />} title="Attendance" description="Track attendance records" onPress={notWired} />
         </View>
 
-        {/* ===================== Important Notice ===================== */}
+        {/* Important Notice */}
         <View style={styles.noticeCard}>
           <View style={styles.noticeAccent} />
           <View style={styles.noticeIconCircle}>
@@ -317,23 +269,20 @@ export default function AdminDashboard() {
           <View style={styles.noticeTextWrap}>
             <Text style={styles.noticeTitle}>Important Notice</Text>
             <Text style={styles.noticeText}>
-              {studentsLabel} and Monthly Reports are wired to real data. The rest are
-              placeholders, tell me which to build out next.
+              {studentsLabel} and Monthly Reports are wired to real data. The rest are placeholders,
+              tell me which to build out next.
             </Text>
           </View>
         </View>
 
-        {/* ===================== Statistics ===================== */}
-        {/* Only Children is backed by real data in the app today, so the other
-            counts show "-" rather than fabricated numbers. Wire real teacher/
-            class/report counts here once those endpoints exist. */}
+        {/* Statistics */}
         <View style={styles.statsRow}>
           <StatCard icon={<ChildrenIcon color={EMERALD} size={20} />} value="-" label={studentsLabel} />
           <StatCard icon={<TeacherIcon color={EMERALD} size={20} />} value="-" label="Teachers" />
           <StatCard icon={<ClassesIcon color={EMERALD} size={20} />} value="-" label="Classes" />
           <StatCard icon={<FeeIcon color={EMERALD} size={20} />} value="-" label="Reports" />
         </View>
-      </ScrollView>
+      </Animated.ScrollView>
     </View>
   );
 }
@@ -344,6 +293,10 @@ const styles = StyleSheet.create({
   flex: { flex: 1, backgroundColor: '#FFFFFF' },
   scrollContent: { paddingBottom: 130 },
 
+  /* Parallax background */
+  bgLayer: { position: 'absolute', top: 0, left: 0, right: 0, zIndex: 0 },
+  bgGradient: { flex: 1, borderBottomLeftRadius: 40, borderBottomRightRadius: 40, overflow: 'hidden' },
+
   /* Header */
   greetingRow: {
     flexDirection: 'row',
@@ -351,6 +304,7 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     paddingHorizontal: H_PAD,
     paddingTop: 54,
+    paddingBottom: 30,
   },
   greetingTextWrap: { flex: 1, paddingRight: 12 },
   greetingSmall: { fontSize: 15, color: PALE_GREEN, fontWeight: '500' },
@@ -363,11 +317,6 @@ const styles = StyleSheet.create({
     borderColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOpacity: 0.2,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 6,
   },
   avatarInner: {
     width: 56,
@@ -391,20 +340,23 @@ const styles = StyleSheet.create({
   },
 
   /* Monthly Reports */
-  reportsCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  reportsShadow: {
     marginHorizontal: H_PAD,
-    marginTop: -34,
     borderRadius: 24,
-    padding: 20,
-    minHeight: 120,
-    overflow: 'hidden',
+    backgroundColor: '#08251A',
     shadowColor: '#000',
     shadowOpacity: 0.22,
     shadowRadius: 18,
     shadowOffset: { width: 0, height: 12 },
     elevation: 8,
+  },
+  reportsCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 24,
+    padding: 20,
+    minHeight: 120,
+    overflow: 'hidden',
   },
   reportsIconCircle: {
     width: 58,
@@ -442,25 +394,25 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
     fontWeight: '700',
   },
-  grid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    paddingHorizontal: H_PAD,
-  },
-  manageCardWrap: { width: '48.5%', marginBottom: 14 },
-  manageCardTouch: {
-    minHeight: 128,
+  grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', paddingHorizontal: H_PAD },
+  manageCardWrap: {
+    width: '48.5%',
+    marginBottom: 14,
     borderRadius: 22,
-    padding: 16,
-    overflow: 'hidden',
+    backgroundColor: '#FFFFFF',
     shadowColor: '#000',
     shadowOpacity: 0.08,
     shadowRadius: 14,
     shadowOffset: { width: 0, height: 6 },
     elevation: 3,
   },
-  manageCardSoftBg: { ...StyleSheet.absoluteFillObject, backgroundColor: EMERALD_SOFT, borderRadius: 22 },
+  manageCardInner: {
+    minHeight: 128,
+    borderRadius: 22,
+    padding: 16,
+    overflow: 'hidden',
+  },
+  manageCardSoft: { backgroundColor: EMERALD_SOFT },
   manageIconCircle: {
     width: 46,
     height: 46,
@@ -472,7 +424,7 @@ const styles = StyleSheet.create({
   },
   manageIconCircleSolid: { backgroundColor: 'rgba(255,255,255,0.18)' },
   manageTitle: { fontSize: 16, fontWeight: '800' },
-  manageDesc: { fontSize: 12, marginTop: 4, lineHeight: 16 },
+  manageDesc: { fontSize: 12, marginTop: 4, lineHeight: 16, paddingRight: 36 },
   manageArrow: {
     position: 'absolute',
     right: 14,
@@ -496,11 +448,6 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     padding: 18,
     overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOpacity: 0.06,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 5 },
-    elevation: 2,
   },
   noticeAccent: { position: 'absolute', left: 0, top: 0, bottom: 0, width: 4, backgroundColor: EMERALD },
   noticeIconCircle: {
@@ -517,12 +464,7 @@ const styles = StyleSheet.create({
   noticeText: { fontSize: 12.5, color: INK, lineHeight: 18 },
 
   /* Statistics */
-  statsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingHorizontal: H_PAD,
-    marginTop: 22,
-  },
+  statsRow: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: H_PAD, marginTop: 22 },
   statCard: {
     flex: 1,
     marginHorizontal: 4,
@@ -548,6 +490,4 @@ const styles = StyleSheet.create({
   },
   statValue: { fontSize: 22, fontWeight: '800', color: INK },
   statLabel: { fontSize: 11, color: SUBTLE, marginTop: 3 },
-  statGrowthRow: { flexDirection: 'row', alignItems: 'center', marginTop: 6 },
-  statGrowthText: { fontSize: 10.5, color: EMERALD, fontWeight: '700', marginLeft: 3 },
 });

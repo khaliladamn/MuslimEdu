@@ -9,6 +9,7 @@ import PlaceholderCardScreen from '../screens/common/PlaceholderCardScreen';
 import MenuScreen from '../screens/common/MenuScreen';
 import OrphanReportScreen from '../screens/orphan/OrphanReportScreen';
 import AdminOrphanOverviewScreen from '../screens/orphan/AdminOrphanOverviewScreen';
+import AdmissionScreen from '../screens/admin/AdmissionScreen';
 
 const EMERALD = '#0F9D58';
 const SUBTLE = '#9AA0A6';
@@ -69,7 +70,6 @@ const ICONS: Record<string, (color: string) => React.ReactElement> = {
 };
 
 // Docked, full-width, icon-only tab bar (no floating pill, no labels).
-// Active state = emerald icon + emerald indicator bar above it.
 function DockedTabBar({ state, navigation }: any) {
   const insets = useSafeAreaInsets();
   return (
@@ -93,9 +93,6 @@ function DockedTabBar({ state, navigation }: any) {
   );
 }
 
-function AdmissionPlaceholder() {
-  return <PlaceholderCardScreen title="Admission" />;
-}
 function ChatPlaceholder() {
   return <PlaceholderCardScreen title="Chat" />;
 }
@@ -134,7 +131,8 @@ export default function MainTabs() {
     >
       <Tab.Screen name="Home" component={HomeRouter} />
 
-      {isAdminRole && <Tab.Screen name="Admission" component={AdmissionPlaceholder} />}
+      {/* Admission tab now opens the real working admission form (admins only). */}
+      {isAdminRole && <Tab.Screen name="Admission" component={AdmissionScreen} />}
 
       <Tab.Screen name="Reports" component={ReportsRouter} />
 
@@ -151,8 +149,6 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: '#EDEEF0',
     paddingTop: 8,
-    // Docked to the bottom edge, full width. No absolute positioning,
-    // no rounded pill, no drop shadow: it's part of the layout now.
   },
   tabItem: {
     flex: 1,
